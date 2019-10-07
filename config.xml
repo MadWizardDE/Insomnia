@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<InsomniaConfig interval="60000" port="1473">
+
+    <!-- <DebugParameters startupDelay="0" /> -->
+
+    <Logging logLevel="INFO">
+        <EventLog />
+    </Logging>
+
+    <UserInterface>
+        <TrayMenu />
+        <MoonriseCommander />
+
+        <WindowCleaner>
+            <TitlePattern name="NETWORK_DRIVES">Netzwerkgeräte wiederherstellen</TitlePattern>
+        </WindowCleaner>
+    </UserInterface>
+
+    <SleepWatch>
+        <NetworkWake mode="continuous">
+            <Network name="Unseen University" id="{...}">
+                <!-- <Bridge url="moonrise://ip.madwizard.de:1234" /> -->
+
+                <Host name="DRAGON" enabled="false" address="08:60:6E:6E:AA:66" />
+                <Host name="dragonfly">08:60:6E:6E:AA:66</Host>
+            </Network>
+        </NetworkWake>
+
+        <ActivityDetector idleMax="1" log="true">
+            <PingHost>
+                <Host name="KEVINS-PC" />
+                <Host name="KEVINS-LAPTOP" />
+            </PingHost>
+
+            <PowerRequests logIfIdle="true" keepAlive="true">
+                <Request name="Audio/Video">vlc,audio,video</Request>
+                <Request name="Backup">backup</Request>
+                <Request name="DVBLink">dvblink_server</Request>
+            </PowerRequests>
+
+            <RemoteDesktopConnection />
+            <UserIdle />
+            <WakeOnLAN />
+        </ActivityDetector>
+
+        <AntiSleepWalk />
+    </SleepWatch>
+
+    <RemoteControl discovery="broadcast" security="none" />
+
+    <LogSweeper count="10" />
+
+</InsomniaConfig>

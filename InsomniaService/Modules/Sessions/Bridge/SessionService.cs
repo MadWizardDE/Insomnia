@@ -1,0 +1,114 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace MadWizard.Insomnia.Service.Sessions
+{
+    internal abstract class SessionService : IDisposable
+    {
+        Type _type;
+
+        List<SessionServiceReference> _externalRefs;
+
+        protected SessionService(Type type)
+        {
+            _type = type;
+
+            _externalRefs = new List<SessionServiceReference>();
+        }
+
+        public int ReferenceCount => _externalRefs.Count;
+
+        public event EventHandler ReferencesChanged;
+
+        internal void AddReference(SessionServiceReference ssRef)
+        {
+            _externalRefs.Add(ssRef);
+
+            ReferencesChanged?.Invoke(this, EventArgs.Empty);
+        }
+        internal bool RemoveReference(SessionServiceReference ssRef)
+        {
+            bool removed = _externalRefs.Remove(ssRef);
+
+            ReferencesChanged?.Invoke(this, EventArgs.Empty);
+
+            return removed;
+        }
+
+        internal abstract void AddSession(ISession session);
+        internal abstract void RemoveSession(ISession session);
+
+        public abstract void Dispose();
+    }
+
+    internal class SessionService<T> : SessionService, ISessionService<T> where T : class
+    {
+        SessionBridge __bridge;
+
+        IDictionary<ISession, IServiceReference<T>> _sessionRefs;
+
+        internal SessionService(SessionBridge bridge) : base(typeof(T))
+        {
+            __bridge = bridge;
+
+            _sessionRefs = new ConcurrentDictionary<ISession, IServiceReference<T>>();
+        }
+
+        private async Task<IServiceReference<T>> Reference(ISession session)
+        {
+            if (_sessionRefs.TryGetValue(session, out IServiceReference<T> serviceRef))
+            {
+                _sessionRefs[session] = (serviceRef = await __bridge.AcquireServiceReference<T>(session));
+            }
+
+            return serviceRef;
+        }
+
+        internal override void AddSession(ISession session)
+        {
+            if (_sessionRefs.ContainsKey(session))
+                throw new ArgumentException($"Session {session.Id} already known.");
+
+            var serviceRef = __bridge.AcquireServiceReference<T>(session).Result;
+
+            _sessionRefs[session] = serviceRef;
+        }
+        T ISessionService<T>.SelectSession(ISession session)
+        {
+            if (!_sessionRefs.ContainsKey(session))
+                throw new ArgumentException($"Session {session.Id} unknown.");
+
+            return _sessionRefs[session].Service;
+        }
+        internal override void RemoveSession(ISession session)
+        {
+            if (!_sessionRefs.ContainsKey(session))
+                throw new ArgumentException($"Session {session.Id} unknown.");
+
+            __bridge.ReleaseServiceReference(_sessionRefs[session]).Wait();
+
+            _sessionRefs.Remove(session);
+        }
+
+        IEnumerator<IServiceReference<T>> IEnumerable<IServiceReference<T>>.GetEnumerator()
+        {
+            foreach (var serviceRef in _sessionRefs.Values)
+                yield return serviceRef;
+        }
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return ((IEnumerable<IServiceReference<T>>)this).GetEnumerator();
+        }
+
+        public override void Dispose()
+        {
+            foreach (ISession session in _sessionRefs.Keys.ToArray())
+                RemoveSession(session);
+        }
+    }
+}

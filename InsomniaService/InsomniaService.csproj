@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <UserSecretsId>dotnet-InsomniaService-CA259554-4F36-489F-A3C7-1D57E68C4B66</UserSecretsId>
+    <RootNamespace>MadWizard.Insomnia.Service</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Modules\UI\**" />
+    <Content Remove="Modules\UI\**" />
+    <EmbeddedResource Remove="Modules\UI\**" />
+    <None Remove="Modules\UI\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Autofac" Version="4.9.4" />
+    <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="5.0.0" />
+    <PackageReference Include="Cassia" Version="2.0.0.60" />
+    <PackageReference Include="Castle.Core" Version="4.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Xml" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="3.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="3.0.0" />
+    <PackageReference Include="NamedPipeWrapper.NetStandard" Version="1.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Modules\Bugfix\" />
+    <Folder Include="Modules\RemoteControl\" />
+  </ItemGroup>
+</Project>

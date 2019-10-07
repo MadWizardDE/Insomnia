@@ -1,0 +1,283 @@
+﻿using MadWizard.Insomnia.Service.Sessions;
+using MadWizard.Insomnia.Minion.Properties;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using wyDay.Controls;
+
+using static MadWizard.Insomnia.Service.Sessions.INotificationAreaService;
+
+namespace MadWizard.Insomnia.Minion.Services
+{
+    class NotificationAreaService : INotificationAreaService, IDisposable
+    {
+        IUserInterface _userInterface;
+        IUserMessenger _userMessenger;
+
+        NotifyIcon _notifyIcon;
+        VistaMenu _vistaMenu;
+
+        bool _moonriseCommander;
+        IDictionary<string, IDictionary<string, WakeTarget>> _wakeTargets;
+        IDictionary<string, WakeOption> _wakeOptions;
+
+        public NotificationAreaService(IUserInterface ui, IUserMessenger messenger)
+        {
+            _wakeTargets = new ConcurrentDictionary<string, IDictionary<string, WakeTarget>>();
+            _wakeOptions = new ConcurrentDictionary<string, WakeOption>();
+
+            _userInterface = ui;
+            _userInterface.SendAction(CreateTrayIcon);
+            _userInterface.SendAction(UpdateContextMenu);
+
+            _userMessenger = messenger;
+        }
+
+        #region Component Lifecycle
+        private void CreateTrayIcon()
+        {
+            _notifyIcon = new NotifyIcon();
+            _notifyIcon.Text = "Insomnia";
+            _notifyIcon.Icon = Resources.MoonWhiteOutline12;
+            _notifyIcon.Visible = true;
+
+            _vistaMenu = new VistaMenu();
+        }
+        private void UpdateContextMenu()
+        {
+            static void NotifyIcon_DoubleClick(object sender, EventArgs args)
+            {
+                ContextMenu_MoonriseCommanderClicked(sender, args);
+            }
+            static void ContextMenu_MoonriseCommanderClicked(object sender, EventArgs args)
+            {
+                //new MoonriseWindow().ShowDialog();
+                throw new NotImplementedException();
+            }
+
+            _notifyIcon.DoubleClick -= NotifyIcon_DoubleClick;
+            _notifyIcon.ContextMenu?.Dispose();
+
+            if (_wakeTargets.Count > 0 || _moonriseCommander)
+            {
+                _notifyIcon.ContextMenu = new ContextMenu();
+
+                if (_moonriseCommander)
+                {
+                    MenuItem commander = new MenuItem("Moonrise Commander");
+                    _vistaMenu.SetImage(commander, new Bitmap(Resources.Moonrise, new Size(16, 16)));
+                    commander.DefaultItem = true;
+                    commander.Click += ContextMenu_MoonriseCommanderClicked;
+                    _notifyIcon.ContextMenu.MenuItems.Add(commander);
+
+                    _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
+
+
+                    _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
+                }
+
+                if (_wakeTargets.Count > 0)
+                {
+                    if (_wakeTargets.TryGetValue(null, out var defaultWakeGroup))
+                        AddWakeGroup(defaultWakeGroup.Values);
+                    foreach (var groupName in _wakeTargets.Keys.Where(name => name != null))
+                        AddWakeGroup(_wakeTargets[groupName].Values);
+
+                    if (_wakeOptions.Count > 0)
+                    {
+                        _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
+
+                        MenuItem menuOptions = new MenuItem("Optionen");
+
+                        foreach (WakeOption option in _wakeOptions.Values)
+                        {
+                            void ContextMenu_OptionClicked(object sender, EventArgs args)
+                            {
+                                if (option.Value is bool check)
+                                {
+                                    _userMessenger.SendMessage(new ConfigureWakeOptionMessage(new WakeOption(option.Key, !check)));
+                                }
+                            }
+
+                            static string Label(WakeOption option)
+                            {
+                                switch (option.Key)
+                                {
+                                    case WakeOption.RESOLVE_IP:
+                                        return "IP-Adresse auflösen";
+                                    default:
+                                        return option.Key;
+                                }
+                            }
+
+                            MenuItem optionItem = new MenuItem(Label(option));
+                            if (option.Value is bool check)
+                            {
+                                optionItem.Checked = check;
+                                optionItem.Click += ContextMenu_OptionClicked;
+                            }
+                            else
+                                optionItem.Enabled = false;
+
+                            menuOptions.MenuItems.Add(optionItem);
+                        }
+
+                        _notifyIcon.ContextMenu.MenuItems.Add(menuOptions);
+                    }
+                }
+
+                //((System.ComponentModel.ISupportInitialize)(_vistaMenu)).EndInit();
+
+                void AddWakeGroup(IEnumerable<WakeTarget> targets)
+                {
+                    if (_notifyIcon.ContextMenu.MenuItems.Count > 0)
+                        if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Name != "-")
+                            _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator hinzufügen (wenn nicht schon vorhanden)
+
+                    string networkName = targets.Select(t => t.NetworkName).Distinct().Single();
+
+                    if (networkName != null)
+                    {
+                        MenuItem header = new MenuItem(networkName)
+                        {
+                            Enabled = false
+                        };
+
+                        _notifyIcon.ContextMenu.MenuItems.Add(header);
+                    }
+
+                    foreach (WakeTarget target in targets)
+                    {
+                        void ContextMenu_TargetClicked(object sender, EventArgs args)
+                        {
+                            WakeTarget target = (WakeTarget)(sender as MenuItem).Tag;
+
+                            _userMessenger.SendMessage(new ConfigureWakeOnLANMessage(new WakeTarget { Name = target.Name, SelectedMode = !(bool)target.SelectedMode }));
+                        }
+                        void ContextMenu_ModeClicked(object sender, EventArgs args)
+                        {
+                            string mode = (sender as MenuItem).Tag as string;
+
+                            if ((string)target.SelectedMode != mode)
+                                _userMessenger.SendMessage(new ConfigureWakeOnLANMessage(new WakeTarget { Name = target.Name, SelectedMode = mode }));
+                        }
+
+                        MenuItem item = new MenuItem(target.Name);
+
+                        if (target.SelectedMode is bool enabled)
+                        {
+                            item.Tag = target;
+                            item.Checked = enabled;
+                            item.Enabled = target.AvailableModes.Contains(!enabled);
+                            item.Click += ContextMenu_TargetClicked;
+                        }
+                        else if (target.SelectedMode is string selectedMode)
+                        {
+                            foreach (string mode in target.AvailableModes)
+                            {
+                                MenuItem itemOption = new MenuItem(mode.ToUpper()); // TODO Name
+                                item.Tag = mode;
+                                item.Checked = mode == selectedMode;
+                                item.Click += ContextMenu_ModeClicked;
+
+                                // TODO Icon
+
+                                item.MenuItems.Add(itemOption);
+                            }
+                        }
+                        else
+                            throw new ArgumentException($"Unrecognized Option = {target.SelectedMode}");
+
+                        _notifyIcon.ContextMenu.MenuItems.Add(item);
+                    }
+                }
+            }
+        }
+        private void DestroyTrayIcon()
+        {
+            _vistaMenu?.Dispose();
+            _vistaMenu = null;
+
+            if (_notifyIcon != null)
+            {
+                _notifyIcon.Visible = false;
+                _notifyIcon.Dispose();
+                _notifyIcon = null;
+            }
+        }
+        #endregion
+
+        #region INotificationAreaService
+        public bool IsMoonriseCommanderEnabled
+        {
+            get => _moonriseCommander;
+
+            set
+            {
+                if (_moonriseCommander != value)
+                {
+                    _moonriseCommander = value;
+
+                    _userInterface.SendAction(UpdateContextMenu);
+                }
+            }
+        }
+
+        bool INotificationAreaService.IsMoonriseCommanderEnabled { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
+        public async Task ShowNotificationAsync(NotifyMessageType type, string title, string text, int timeout)
+        {
+            await _userInterface.SendActionAsync(() =>
+            {
+                _notifyIcon.ShowBalloonTip(timeout, title, text, (ToolTipIcon)type);
+            });
+        }
+
+        public async Task ShowWakeTarget(WakeTarget target)
+        {
+            if (!_wakeTargets.TryGetValue(target.NetworkName, out var networkTargets))
+                _wakeTargets[target.NetworkName] = networkTargets = new Dictionary<string, WakeTarget>();
+
+            networkTargets[target.Name] = target;
+
+            await _userInterface.SendActionAsync(UpdateContextMenu);
+        }
+        public async Task HideWakeTarget(WakeTarget target)
+        {
+            if (_wakeTargets.TryGetValue(target.NetworkName, out var networkTargets))
+            {
+                networkTargets.Remove(target.Name);
+
+                if (networkTargets.Count == 0)
+                    _wakeTargets.Remove(target.NetworkName);
+
+                await _userInterface.SendActionAsync(UpdateContextMenu);
+            }
+        }
+
+        public async Task ShowWakeOption(WakeOption option)
+        {
+            _wakeOptions[option.Key] = option;
+
+            await _userInterface.SendActionAsync(UpdateContextMenu);
+        }
+        public async Task HideWakeOption(WakeOption option)
+        {
+            _wakeOptions.Remove(option.Key);
+
+            await _userInterface.SendActionAsync(UpdateContextMenu);
+        }
+        #endregion
+
+        void IDisposable.Dispose()
+        {
+            _userInterface.SendAction(DestroyTrayIcon);
+        }
+
+    }
+}
