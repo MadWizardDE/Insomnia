@@ -24,14 +24,14 @@ namespace MadWizard.Insomnia.Service.SleepWatch
         InsomniaConfig _config;
         NetworkCommanderConfig _configCommander;
 
-        SessionManager _sessionManager;
+        ISessionManager _sessionManager;
 
         Timer _wakeTimer;
 
         IDictionary<string, IWakeMode> _wakeModes;
         IDictionary<string, Network> _wakeNetworks;
 
-        public NetworkCommander(InsomniaConfig config, SessionManager sessionManager, IEnumerable<IWakeMode> modes)
+        public NetworkCommander(InsomniaConfig config, ISessionManager sessionManager, IEnumerable<IWakeMode> modes)
         {
             _config = config;
             _configCommander = config.SleepWatch?.NetworkCommander;

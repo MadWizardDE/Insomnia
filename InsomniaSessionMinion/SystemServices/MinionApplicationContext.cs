@@ -55,7 +55,7 @@ namespace MadWizard.Insomnia.Minion
         }
         Task IUserInterface.SendActionAsync(Action action)
         {
-            var taskSource = new TaskCompletionSource<bool>();
+            var taskSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _syncContext.Post(delegate
             {

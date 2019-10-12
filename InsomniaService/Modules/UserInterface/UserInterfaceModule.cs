@@ -12,15 +12,14 @@ namespace MadWizard.Insomnia.Service.UI
         {
             builder.RegisterType<NotificationAreaController>()
                 .AttributedPropertiesAutowired()
-                .SingleInstance()
                 .AsImplementedInterfaces()
-                .AsSelf()
+                .SingleInstance()
                 ;
 
-            builder.RegisterType<NotificationAreaController>()
+            builder.RegisterType<WindowController>()
                 .AttributedPropertiesAutowired()
-                .SingleInstance()
                 .AsImplementedInterfaces()
+                .SingleInstance()
                 ;
         }
 

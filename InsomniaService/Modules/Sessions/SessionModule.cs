@@ -11,14 +11,16 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             builder.RegisterType<SessionBridge>()
                 .AttributedPropertiesAutowired()
+                .AsImplementedInterfaces()
                 .SingleInstance()
                 .AsSelf()
                 ;
 
             builder.RegisterType<SessionManager>()
                 .AttributedPropertiesAutowired()
-                .SingleInstance()
+                .AsImplementedInterfaces()
                 .As<ISessionManager>()
+                .SingleInstance()
                 ;
 
             builder.RegisterSource<SessionServiceRegistrationSource>();

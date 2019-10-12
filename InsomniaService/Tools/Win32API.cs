@@ -236,9 +236,11 @@ namespace MadWizard.Insomnia.Tools
             // obtain a handle to the access token of the winlogon process
             if (!OpenProcessToken(hProcess, TOKEN_DUPLICATE, ref hPToken))
             {
+                int lastError = Marshal.GetLastWin32Error();
+
                 CloseHandle(hProcess);
 
-                throw new Win32Exception(Marshal.GetLastWin32Error());
+                throw new Win32Exception(lastError);
             }
 
             // Security attibute structure used in DuplicateTokenEx and CreateProcessAsUser
@@ -252,10 +254,12 @@ namespace MadWizard.Insomnia.Tools
             // copy the access token of the winlogon process; the newly created token will be a primary token
             if (!DuplicateTokenEx(hPToken, MAXIMUM_ALLOWED, ref sa, (int)SECURITY_IMPERSONATION_LEVEL.SecurityIdentification, (int)TOKEN_TYPE.TokenPrimary, ref hUserTokenDup))
             {
+                int lastError = Marshal.GetLastWin32Error();
+
                 CloseHandle(hProcess);
                 CloseHandle(hPToken);
 
-                throw new Win32Exception(Marshal.GetLastWin32Error());
+                throw new Win32Exception(lastError);
             }
 
             // By default CreateProcessAsUser creates a process on a non-interactive window station, meaning
@@ -283,13 +287,17 @@ namespace MadWizard.Insomnia.Tools
                                             out procInfo            // receives information about new process
                                             );
 
-            // invalidate the handles
-            CloseHandle(hProcess);
-            CloseHandle(hPToken);
-            CloseHandle(hUserTokenDup);
+            {
+                int lastError = Marshal.GetLastWin32Error();
 
-            if (!result)
-                throw new Win32Exception(Marshal.GetLastWin32Error());
+                // invalidate the handles
+                CloseHandle(hProcess);
+                CloseHandle(hPToken);
+                CloseHandle(hUserTokenDup);
+
+                if (!result)
+                    throw new Win32Exception(lastError);
+            }
 
             return (int)procInfo.dwProcessId; // return the pid
         }

@@ -37,7 +37,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                 {
                     var bridge = c.Resolve<SessionBridge>();
 
-                    return bridge.AcquireSessionServiceReference<ISessionService<T>>();
+                    return bridge.AcquireSessionServiceReference<T>();
                 })
                 .As(providedService);
 

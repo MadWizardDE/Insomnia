@@ -89,6 +89,8 @@ namespace MadWizard.Insomnia.Minion
             _services.Add(serviceType, new Service(serviceType, serviceScope));
 
             _messenger.SendMessage(new ServiceStateMessage(serviceType, ServiceState.STARTED));
+
+            Logger.LogDebug($"Service {serviceType.Name} started");
         }
         private void StopService(Type serviceType)
         {
@@ -100,6 +102,8 @@ namespace MadWizard.Insomnia.Minion
             _services.Remove(serviceType);
 
             _messenger.SendMessage(new ServiceStateMessage(serviceType, ServiceState.STOPPED));
+
+            Logger.LogDebug($"Service {serviceType.Name} stopped");
         }
         #endregion
 

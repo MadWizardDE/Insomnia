@@ -39,8 +39,24 @@ namespace MadWizard.Insomnia.Service.Sessions
             _tsManager = new TerminalServicesManager();
             _tsServer = _tsManager.GetLocalServer();
 
-            _sessions = new Dictionary<int, Session>();
+            _sessions = PopulateSessions();
+
+            IDictionary<int, Session> PopulateSessions()
+            {
+                var dict = new Dictionary<int, Session>();
+
+                foreach (ITerminalServicesSession s in _tsServer.GetSessions())
+                    if (s.ConnectionState == Cassia.ConnectionState.Active
+                        || s.ConnectionState == Cassia.ConnectionState.Connected
+                        || s.ConnectionState == Cassia.ConnectionState.Disconnected)
+                        if (s.UserAccount != null)
+                            dict[s.SessionId] = new Session(s);
+
+                return dict;
+            }
         }
+
+
 
         [Autowired]
         ILogger<SessionManager> Logger { get; set; }
@@ -158,7 +174,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             Session session;
             if (desc.Reason == SessionChangeReason.SessionLogon)
-                session = new Session(_tsServer.GetSession(desc.SessionId));
+                _sessions[desc.SessionId] = session = new Session(_tsServer.GetSession(desc.SessionId));
             else
                 session = _sessions[desc.SessionId];
 
@@ -177,7 +193,6 @@ namespace MadWizard.Insomnia.Service.Sessions
 
                 Logger.LogDebug(InsomniaEventId.SESSION_CHANGE_INFO, sb.ToString());
             }
-
 
             if (session.Id == WTSGetActiveConsoleSessionId())
                 if (desc.Reason == SessionChangeReason.SessionLock)

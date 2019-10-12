@@ -35,8 +35,6 @@ namespace MadWizard.Insomnia.Minion
                 else if (arg.StartsWith(CMD_DEBUG_LOG))
                 {
                     DebugLogging = true;
-
-                    //Debug.Listeners.Add(new TraceListener(new FileInfo("helper.log")));
                 }
             }
         }
@@ -101,6 +99,8 @@ namespace MadWizard.Insomnia.Minion
                 PipeClient.Error += PipeClient_Error;
 
                 PipeClient.Start();
+
+                Thread.Sleep(1000);
 
                 PipeClient.PushMessage(new IncarnationMessage(Process.GetCurrentProcess().Id));
 

@@ -1,32 +1,36 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <InsomniaConfig interval="60000" port="1473">
 
-    <!-- <DebugParameters startupDelay="0" /> -->
+    <DebugParameters startupDelay="5000">
+        <TestMessage>Hallo Welt!</TestMessage>
+    </DebugParameters>
 
-    <Logging logLevel="INFO">
+
+    <Logging logLevel="Debug">
         <EventLog />
     </Logging>
 
-    <UserInterface>
-        <TrayMenu />
-        <MoonriseCommander />
+    <!-- <UserInterface>
+        <TrayMenu>
+            <MoonriseCommander />
+        </TrayMenu>
 
         <WindowCleaner>
-            <TitlePattern name="NETWORK_DRIVES">Netzwerkgeräte wiederherstellen</TitlePattern>
+            <TitlePattern>Netzwerkverbindungen wiederherstellen</TitlePattern>
         </WindowCleaner>
-    </UserInterface>
+    </UserInterface> -->
 
-    <SleepWatch>
-        <NetworkWake mode="continuous">
-            <Network name="Unseen University" id="{...}">
-                <!-- <Bridge url="moonrise://ip.madwizard.de:1234" /> -->
+    <SleepWatch log="false">
+        <!-- <NetworkCommander requiredPresence="user" wake="continuous" resolveIPAdress="false">
+            <Network name="Unseen University">
+                <MoonriseEnumerator url="moonrise://ip.madwizard.de:6666/" />
 
-                <Host name="DRAGON" enabled="false" address="08:60:6E:6E:AA:66" />
-                <Host name="dragonfly">08:60:6E:6E:AA:66</Host>
+                <Host name="DRAGON" mode="wakeOnLAN" address="08:60:6E:6E:AA:66" />
+                <Host name="KEVINS-PC" mode="none">90:2B:34:32:78:17</Host>
             </Network>
-        </NetworkWake>
+        </NetworkCommander> -->
 
-        <ActivityDetector idleMax="1" log="true">
+        <!-- <ActivityDetector idleMax="1">
             <PingHost>
                 <Host name="KEVINS-PC" />
                 <Host name="KEVINS-LAPTOP" />
@@ -41,12 +45,12 @@
             <RemoteDesktopConnection />
             <UserIdle />
             <WakeOnLAN />
-        </ActivityDetector>
+        </ActivityDetector> -->
 
-        <AntiSleepWalk />
+        <!-- <AntiSleepWalk /> -->
     </SleepWatch>
 
-    <RemoteControl discovery="broadcast" security="none" />
+    <!-- <RemoteControl discovery="broadcast" security="none" /> -->
 
     <LogSweeper count="10" />
 

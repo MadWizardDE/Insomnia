@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
@@ -31,6 +32,13 @@ namespace MadWizard.Insomnia.Configuration
     public class DebugParameterConfig
     {
         public int StartupDelay { get; set; }
+
+        public TestMessageConfig TestMessage { get; set; }
+
+        public class TestMessageConfig
+        {
+            public string Text { get; set; }
+        }
     }
 
     public class UserInferfaceConfig
@@ -69,6 +77,8 @@ namespace MadWizard.Insomnia.Configuration
 
     public class SleepWatchConfig
     {
+        public bool Log { get; set; }
+
         public ActivityDetectorConfig ActivityDetector { get; set; }
         public NetworkCommanderConfig NetworkCommander { get; set; }
         public AntiSleepWalkConfig AntiSleepWalk { get; set; }
@@ -76,8 +86,6 @@ namespace MadWizard.Insomnia.Configuration
         public class ActivityDetectorConfig
         {
             public int? IdleMax { get; set; }
-
-            public bool Log { get; set; }
 
             public PingHostConfig PingHost { get; set; }
             public PowerRequestConfig PowerRequests { get; set; }
@@ -266,7 +274,7 @@ namespace MadWizard.Insomnia.Configuration
 
     public class LoggingConfig
     {
-        public string LogLevel { get; set; }
+        public LogLevel LogLevel { get; set; } = LogLevel.Warning;
 
         public EventLogConfig EventLog { get; set; }
 

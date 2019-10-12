@@ -5,9 +5,12 @@ using MadWizard.Insomnia.Minion.Tools;
 using MadWizard.Insomnia.Service;
 using MadWizard.Insomnia.Service.Sessions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NamedPipeWrapper;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -26,6 +29,11 @@ namespace MadWizard.Insomnia.Minion
             IHost host;
             using (MinionBootstrap boot = new MinionBootstrap(args))
             {
+                if (true || boot.DebugLogging)
+                {
+                    Trace.Listeners.Add(new TextWriterTraceListener(new FileStream(new FileInfo(@"C:\WizardStuff\Insomnia\helper.log").FullName, FileMode.OpenOrCreate)));
+                }
+
                 boot.WaitForStartup();
 
                 host = CreateHostBuilder(args, boot).Build();
@@ -35,7 +43,12 @@ namespace MadWizard.Insomnia.Minion
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args, MinionBootstrap boot) =>
-            Host.CreateDefaultBuilder(args)
+            Host.CreateDefaultBuilder()
+                .ConfigureLogging((ctx, loggerBuilder) =>
+                {
+                    loggerBuilder.AddDebug();
+                    loggerBuilder.SetMinimumLevel(LogLevel.Debug);
+                })
                 .UseServiceProviderFactory(new AutofacServiceProviderFactory())
                 .ConfigureContainer<ContainerBuilder>((ctx, builder) =>
                 {
@@ -89,10 +102,6 @@ namespace MadWizard.Insomnia.Minion
                 {
 
                 })
-            //.ConfigureLogging(loggerBuilder =>
-            //{
-            //    loggerBuilder.AddConsole
-            //})
             ;
 
     }

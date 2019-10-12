@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO.Pipes;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -16,9 +17,9 @@ using static MadWizard.Insomnia.Service.Sessions.SessionMinion;
 
 namespace MadWizard.Insomnia.Service.Sessions
 {
-    class SessionBridge : IStartable, IDisposable
+    class SessionBridge : IDisposable
     {
-        internal const int MINION_TIMEOUT = 5000;
+        internal const int MINION_TIMEOUT = 50000;
 
         IComponentContext _compContext;
 
@@ -44,19 +45,15 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             _services = new ConcurrentDictionary<Type, SessionService>();
             _minions = new ConcurrentDictionary<ISession, SessionMinion>();
-        }
 
-
-        [Autowired]
-        ILogger<SessionBridge> Logger { get; set; }
-
-        void IStartable.Start()
-        {
-            _pipeServer = new NamedPipeServer<Message>(Message.PIPE_NAME);
+            _pipeServer = new NamedPipeServer<Message>(Message.PIPE_NAME, new PipeSecurity());
             _pipeServer.ClientConnected += PipeServer_ClientConnected;
             _pipeServer.Error += PipeServer_Error;
             _pipeServer.Start();
         }
+
+        [Autowired]
+        ILogger<SessionBridge> Logger { get; set; }
 
         #region SessionManager-Callbacks
         private void SessionManager_UserLogin(object sender, UserEventArgs args)
@@ -73,7 +70,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         #endregion
 
         #region SessionService(-References)
-        internal SessionServiceReference AcquireSessionServiceReference<T>() where T : class
+        internal SessionServiceReference<T> AcquireSessionServiceReference<T>() where T : class
         {
             if (!_services.TryGetValue(typeof(T), out SessionService service))
                 service = CreateSessionService<T>();
@@ -108,7 +105,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             service.ReferencesChanged -= SessionService_ReferencesChanged;
             service.Dispose();
 
-            _services.Remove(_services.First(pair => pair.Value == service));
+            _services.Remove(service.ServiceType);
         }
         #endregion
 
@@ -116,7 +113,11 @@ namespace MadWizard.Insomnia.Service.Sessions
         internal async Task<IServiceReference<T>> AcquireServiceReference<T>(ISession session) where T : class
         {
             if (!_minions.TryGetValue(session, out SessionMinion minion))
+            {
+                Logger.LogDebug($"Launching SessionMinion<{session.Id}>...");
+
                 minion = await LaunchMinion(session.Id, MINION_TIMEOUT);
+            }
 
             return new ServiceReference<T>(session, await minion.StartService<T>());
         }
@@ -126,8 +127,17 @@ namespace MadWizard.Insomnia.Service.Sessions
                 throw new InvalidOperationException("Minion not started");
 
             await minion.StopService<T>();
+
+            if (minion.ServiceCount == 0)
+            {
+                Logger.LogDebug($"Terminating SessionMinion<{serviceRef.Session.Id}>...");
+
+                await minion.Terminate();
+            }
         }
         #endregion
+
+        List<NamedPipeConnection<Message, Message>> _conns = new List<NamedPipeConnection<Message, Message>>();
 
         #region PipeServer
         private void PipeServer_ClientConnected(NamedPipeConnection<Message, Message> pipe)
@@ -187,6 +197,8 @@ namespace MadWizard.Insomnia.Service.Sessions
             }
             #endregion
 
+            _conns.Add(pipe);
+
             /*
              * We wait until the SessionMinion reports for duty.
              */
@@ -217,7 +229,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                 args.Append($" -DebugLog");
 
             // CREATE PROCESS
-            int pid = Win32API.CreateProcessInSession($"InsomniaSessionHelper.exe {args}", (uint)sid);
+            int pid = Win32API.CreateProcessInSession($"InsomniaSessionMinion.exe {args}", (uint)sid);
             // CREATE PROCESS
 
             if (Logger.IsEnabled(LogLevel.Debug))

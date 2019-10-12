@@ -17,12 +17,14 @@ namespace MadWizard.Insomnia.Minion.Services
             _userInterface = ui;
         }
 
-        public void ShowMessage(string text, string caption, TextMessageType type)
+        public Task ShowMessage(string text, string caption, TextMessageType type)
         {
             _userInterface.Value.SendAction(() => MessageBox.Show(text, caption, MessageBoxButtons.OK, (MessageBoxIcon)type));
+
+            return Task.CompletedTask;
         }
 
-        public Task<TextMesageAnswer> ShowMessage(string text, string caption, TextMessageType type, TextMessageOptions options)
+        public Task<TextMesageAnswer> ShowDialog(string text, string caption, TextMessageType type, TextMessageOptions options)
         {
             var answer = (TextMesageAnswer)MessageBox.Show(text, caption, (MessageBoxButtons)options, (MessageBoxIcon)type);
 

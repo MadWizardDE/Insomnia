@@ -7,9 +7,9 @@ namespace MadWizard.Insomnia.Service.Sessions
 {
     public interface ITextMessageService
     {
-        void ShowMessage(string text, string caption = null, TextMessageType type = TextMessageType.None);
+        Task ShowMessage(string text, string caption = null, TextMessageType type = TextMessageType.None);
 
-        Task<TextMesageAnswer> ShowMessage(string text, string caption = null, TextMessageType type = TextMessageType.None, TextMessageOptions options = TextMessageOptions.OK);
+        Task<TextMesageAnswer> ShowDialog(string text, string caption = null, TextMessageType type = TextMessageType.None, TextMessageOptions options = TextMessageOptions.OK);
 
         [Serializable]
         public enum TextMessageType

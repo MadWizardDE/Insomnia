@@ -17,6 +17,7 @@ using System.Threading;
 using MadWizard.Insomnia.Service.Sessions;
 using MadWizard.Insomnia.Service.SleepWatch;
 using MadWizard.Insomnia.Service.UI;
+using MadWizard.Insomnia.Service.Debug;
 
 namespace MadWizard.Insomnia.Service
 {
@@ -36,8 +37,20 @@ namespace MadWizard.Insomnia.Service
                 .UseInsomniaServiceLifetime()
                 .ConfigureAppConfiguration(builder =>
                 {
-                    builder.AddCustomXmlFile(@"E:\Projekte\Visual Studio\Insomnia\config.xml");
+                    builder.AddCustomXmlFile(@"C:\Users\Kevin\Source\Repos\Insomnia\config.xml");
                 })
+                .ConfigureLogging((ctx, loggerBuilder) =>
+                {
+                    var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);
+
+                    if (config.Logging != null)
+                    {
+                        loggerBuilder.SetMinimumLevel(config.Logging.LogLevel);
+                        loggerBuilder.AddConsole();
+                        loggerBuilder.AddDebug();
+                    }
+                })
+
                 .UseServiceProviderFactory(new AutofacServiceProviderFactory())
                 .ConfigureContainer<ContainerBuilder>((ctx, builder) =>
                 {
@@ -61,12 +74,8 @@ namespace MadWizard.Insomnia.Service
                 })
                 .ConfigureServices((hostContext, services) =>
                 {
-
+                    services.AddHostedService<TestWorker>();
                 })
-            //.ConfigureLogging(loggerBuilder =>
-            //{
-            //    loggerBuilder.AddConsole
-            //})
             ;
     }
 }

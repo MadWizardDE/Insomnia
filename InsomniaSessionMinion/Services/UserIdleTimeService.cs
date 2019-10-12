@@ -10,7 +10,7 @@ using System.Timers;
 
 namespace MadWizard.Insomnia.Minion.Services
 {
-    class UserIdleTimeService : BackgroundService, IUserIdleTimeService
+    class UserIdleTimeService : IUserIdleTimeService //, BackgroundService
     {
         SessionMinionConfig _config;
 
@@ -25,7 +25,7 @@ namespace MadWizard.Insomnia.Minion.Services
 
         public long IdleTime => Win32API.IdleTime;
 
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        protected async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
             {

@@ -11,7 +11,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
     {
         string[] _hosts;
 
-        internal PingHostDetector(InsomniaConfig config)
+        public PingHostDetector(InsomniaConfig config)
         {
             var scanConfig = config.SleepWatch?.ActivityDetector?.PingHost;
 

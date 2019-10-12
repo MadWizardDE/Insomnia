@@ -13,7 +13,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 
         SessionManager _sessionManager;
 
-        internal UserIdleDetector(InsomniaConfig config, SessionManager sessionManager)
+        public UserIdleDetector(InsomniaConfig config, SessionManager sessionManager)
         {
             _config = config;
 

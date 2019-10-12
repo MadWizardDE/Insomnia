@@ -10,16 +10,16 @@ namespace MadWizard.Insomnia.Service.Sessions
 {
     internal abstract class SessionService : IDisposable
     {
-        Type _type;
-
         List<SessionServiceReference> _externalRefs;
 
         protected SessionService(Type type)
         {
-            _type = type;
+            ServiceType = type;
 
             _externalRefs = new List<SessionServiceReference>();
         }
+
+        internal Type ServiceType { get; private set; }
 
         public int ReferenceCount => _externalRefs.Count;
 
@@ -57,16 +57,6 @@ namespace MadWizard.Insomnia.Service.Sessions
             __bridge = bridge;
 
             _sessionRefs = new ConcurrentDictionary<ISession, IServiceReference<T>>();
-        }
-
-        private async Task<IServiceReference<T>> Reference(ISession session)
-        {
-            if (_sessionRefs.TryGetValue(session, out IServiceReference<T> serviceRef))
-            {
-                _sessionRefs[session] = (serviceRef = await __bridge.AcquireServiceReference<T>(session));
-            }
-
-            return serviceRef;
         }
 
         internal override void AddSession(ISession session)

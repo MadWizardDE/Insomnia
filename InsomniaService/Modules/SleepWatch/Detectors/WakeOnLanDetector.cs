@@ -17,7 +17,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 
         UdpClient _udpClient;
 
-        internal WakeOnLANAnalyzer(InsomniaConfig config)
+        public WakeOnLANAnalyzer(InsomniaConfig config)
         {
             _config = config;
 

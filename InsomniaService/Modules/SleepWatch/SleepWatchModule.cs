@@ -9,10 +9,23 @@ namespace MadWizard.Insomnia.Service.SleepWatch
     {
         protected override void Load(ContainerBuilder builder)
         {
+            builder.RegisterType<ActivityDetector>()
+                .AttributedPropertiesAutowired()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .AsSelf()
+                ;
+
+            builder.RegisterType<AntiSleepWalk>()
+                .AttributedPropertiesAutowired()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                ;
+
             builder.RegisterType<SleepMonitor>()
                 .AttributedPropertiesAutowired()
-                .SingleInstance()
                 .AsImplementedInterfaces()
+                .SingleInstance()
                 .AsSelf()
                 ;
 
@@ -40,18 +53,6 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 .AttributedPropertiesAutowired()
                 .SingleInstance();
             #endregion
-
-            builder.RegisterType<AntiSleepWalk>()
-                .AttributedPropertiesAutowired()
-                .SingleInstance()
-                .AsImplementedInterfaces()
-                ;
-
-            builder.RegisterType<ActivityDetector>()
-                .AttributedPropertiesAutowired()
-                .SingleInstance()
-                .AsImplementedInterfaces()
-                ;
 
         }
     }

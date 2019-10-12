@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using MadWizard.Insomnia.Configuration;
+using MadWizard.Insomnia.Service.Lifetime;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -8,24 +10,30 @@ using System.Text;
 
 namespace MadWizard.Insomnia.Service.SleepWatch
 {
-    class SleepLogWriter : LogFileSweeper.ISweepable, IDisposable
+    class SleepLogWriter : LogFileSweeper.ISweepable, IPowerEventHandler, IDisposable
     {
-        ActivityDetector _scanner;
+        SleepWatchConfig _config;
+
         SleepMonitor _monitor;
 
         DirectoryInfo _logsDir;
         FileInfo _logFile;
 
-        internal SleepLogWriter(ActivityDetector scanner, SleepMonitor monitor)
+        public SleepLogWriter(InsomniaConfig config, Lazy<SleepMonitor> monitor)
         {
-            _scanner = scanner;
+            _config = config.SleepWatch;
 
-            _monitor = monitor;
-            _monitor.PowerNap += OnPowerNap;
-            _monitor.SleepOver += OnSleepOver;
+            if (_config?.Log ?? false)
+            {
+                _monitor = monitor.Value;
+                _monitor.PowerNap += OnPowerNap;
+                _monitor.SleepOver += OnSleepOver;
 
-            _logsDir = new DirectoryInfo("logs");
-            _logFile = new FileInfo(Path.Combine(_logsDir.FullName, "sleep.log"));
+                _logsDir = new DirectoryInfo("logs");
+                _logFile = new FileInfo(Path.Combine(_logsDir.FullName, "sleep.log"));
+
+                Directory.CreateDirectory(_logsDir.FullName);
+            }
         }
 
         [Autowired]
@@ -35,49 +43,39 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
         DirectoryInfo LogFileSweeper.ISweepable.WatchDirectory => _logsDir;
 
-        public void PrepareLog()
+
+        void IPowerEventHandler.OnPowerEvent(PowerBroadcastStatus status)
         {
-            StringBuilder sb = new StringBuilder();
-
-            if (_logFile.Exists)
+            if (_config?.Log ?? false)
             {
-                if (DateTime.Now.Date != _logFile.LastWriteTime.Date)
-                    ArchiveLog();
-                else
-                    sb.AppendLine();
-            }
-
-            sb.AppendLine("Startup.");
-            sb.AppendLine();
-
-            WriteLog(sb.ToString());
-        }
-
-        public void OnPowerEvent(PowerBroadcastStatus status)
-        {
-            switch (status)
-            {
-                case PowerBroadcastStatus.Suspend:
-                    WriteLog(string.Empty); // ggfs. Tagesabschluss schreiben
-                    break;
+                switch (status)
+                {
+                    case PowerBroadcastStatus.Suspend:
+                        WriteLog(string.Empty); // ggfs. Tagesabschluss schreiben
+                        break;
+                }
             }
         }
 
-        public void Dispose()
+        void IDisposable.Dispose()
         {
-            TimeSpan sleepDuration = _monitor.Duration;
-
-            var sb = new StringBuilder().AppendLine().Append("Shutdown.");
-
-            if (sleepDuration.TotalMinutes > 0)
+            if (_config?.Log ?? false)
             {
-                sb.Append(" Total sleep duration: ");
-                sb.Append(FormatTimeSpan(sleepDuration));
-            }
+                TimeSpan sleepDuration = _monitor.Duration;
 
-            WriteLog(sb.ToString());
+                var sb = new StringBuilder().AppendLine().Append("Shutdown.");
+
+                if (sleepDuration.TotalMinutes > 0)
+                {
+                    sb.Append(" Total sleep duration: ");
+                    sb.Append(FormatTimeSpan(sleepDuration));
+                }
+
+                WriteLog(sb.ToString());
+            }
         }
 
+        #region SleepMonitor
         private void OnSleepOver(object sender, EventArgs e)
         {
             FinishLog();
@@ -97,7 +95,26 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 WriteLog(sb.ToString());
             }
         }
+        #endregion
 
+        #region ActivityDetector
+        public void PrepareLog()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            if (_logFile.Exists)
+            {
+                if (DateTime.Now.Date != _logFile.LastWriteTime.Date)
+                    ArchiveLog();
+                else
+                    sb.AppendLine();
+            }
+
+            sb.AppendLine("Startup.");
+            sb.AppendLine();
+
+            WriteLog(sb.ToString());
+        }
         public void WriteActivity(ActivityAnalysis analysis)
         {
             var sb = new StringBuilder(DateTime.Now.ToString("HH:mm")).Append("\t");
@@ -114,6 +131,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
             WriteLog(sb.ToString());
         }
+        #endregion
 
         private void WriteLog(string text)
         {
@@ -138,7 +156,6 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 _logFile.CreationTime = DateTime.Now;
             }
         }
-
         private void FinishLog()
         {
             var sb = new StringBuilder().AppendLine();
@@ -150,7 +167,6 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
             _monitor.ResetTime();
         }
-
         private void ArchiveLog()
         {
             _logFile.Refresh();
@@ -170,7 +186,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
             File.Move(_logFile.FullName, path);
         }
 
-        private static string FormatTimeSpan(TimeSpan time)
+        static string FormatTimeSpan(TimeSpan time)
         {
             var sb = new StringBuilder();
             if (time.Days > 0)

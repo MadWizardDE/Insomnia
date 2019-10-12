@@ -4,8 +4,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Timers;
 using System.Threading;
 using System.Threading.Tasks;
+using Timer = System.Timers.Timer;
+using System.Linq;
 
 namespace MadWizard.Insomnia.Service.Sessions
 {
@@ -49,6 +52,8 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         internal int PID => Process.Id;
         internal int SID => Process.SessionId;
+
+        internal int ServiceCount => _services.Count;
 
         internal event EventHandler<MessageEventArgs> MessageArrived;
         internal event EventHandler<TerminationEventArgs> Terminated;
@@ -148,39 +153,35 @@ namespace MadWizard.Insomnia.Service.Sessions
             _pipe.PushMessage(message);
         }
 
-        internal void Terminate(double? timeout = null, bool wait = false)
+        internal Task Terminate(double? timeout = null)
         {
-            using (var waiter = new ManualResetEvent(false))
+            if (Process.HasExited)
+                throw new InvalidOperationException("Process has exited.");
+
+            var taskSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            if (timeout != null)
             {
-                if (wait)
+                var timer = new Timer(timeout.Value);
+                timer.AutoReset = false;
+                timer.Elapsed += (t, e) =>
                 {
-                    Terminated += (s, e) => waiter.Set();
-                }
-
-                _pipe.PushMessage(new TerminateMessage());
-
-                if (timeout != null)
-                {
-                    var timer = new System.Timers.Timer(timeout.Value);
-                    timer.AutoReset = false;
-                    timer.Elapsed += (t, e) =>
+                    if (!Process.HasExited)
                     {
-                        if (!Process.HasExited)
-                        {
-                            _forcedKill = true;
+                        _forcedKill = true;
 
-                            Process.Kill();
-                        }
-                    };
+                        Process.Kill();
+                    }
+                };
 
-                    timer.Start();
-                }
-
-                if (wait)
-                {
-                    waiter.WaitOne();
-                }
+                timer.Start();
             }
+
+            Terminated += (s, e) => taskSource.SetResult(true);
+
+            _pipe.PushMessage(new TerminateMessage());
+
+            return taskSource.Task;
         }
 
         private class ServiceProxy : IInterceptor
@@ -191,7 +192,9 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             Type _serviceType;
 
-            IDictionary<long, ServiceInvocationResultMessage> _resultMap;
+            Timer _timeoutTimer;
+
+            IDictionary<long, ServiceInvocation> _invocationMap;
 
             long _nextMsgID = 1;
 
@@ -201,8 +204,14 @@ namespace MadWizard.Insomnia.Service.Sessions
 
                 _serviceType = serviceType;
 
-                _resultMap = new ConcurrentDictionary<long, ServiceInvocationResultMessage>();
+                _timeoutTimer = new Timer();
+                _timeoutTimer.Interval = 100;
+                _timeoutTimer.AutoReset = true;
+                _timeoutTimer.Elapsed += TimeoutTimer_Elapsed;
+
+                _invocationMap = new ConcurrentDictionary<long, ServiceInvocation>();
             }
+
 
             internal ServiceState State { get; private set; }
 
@@ -214,10 +223,10 @@ namespace MadWizard.Insomnia.Service.Sessions
                 }
                 else if (svcMessage is ServiceInvocationResultMessage resultMessage)
                 {
-                    _resultMap.Add(resultMessage.Id, resultMessage);
+                    ContinueWithResult(resultMessage);
                 }
                 else
-                    throw new ArgumentException($"Unkown MessageType: {_resultMap.GetType().Name}");
+                    throw new ArgumentException($"Unkown MessageType: {_invocationMap.GetType().Name}");
             }
 
             void IInterceptor.Intercept(IInvocation invocation)
@@ -237,58 +246,81 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             object InterceptSync(long id)
             {
+                return InterceptAsync(id).Result;
+            }
+            Task<object> InterceptAsync(long id)
+            {
+                _timeoutTimer.Enabled = true;
+
+                var taskSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _invocationMap.Add(id, new ServiceInvocation(id, taskSource, TimeSpan.FromMilliseconds(SERVICE_TIMEOUT)));
+                return taskSource.Task;
+            }
+
+            internal void ContinueWithResult(ServiceInvocationResultMessage message)
+            {
+                if (!_invocationMap.TryGetValue(message.Id, out var invocation))
+                    throw new ArgumentException($"Unknown Message {message.Id} ");
+
                 try
                 {
-                    int time = 0;
-                    while (true)
-                    {
-                        if (!_resultMap.TryGetValue(id, out var resultMessage))
-                        {
-                            if (time > INVOCATION_TIMEOUT)
-                                throw new TimeoutException("Service-Invocation timed out");
-
-                            Thread.Sleep(10); // sleepwait
-                            time += 10;
-                        }
-                        else
-                        {
-                            if (resultMessage.ExceptionValue != null)
-                                throw resultMessage.ExceptionValue;
-                            return resultMessage.ReturnValue;
-                        }
-                    }
+                    if (message.ExceptionValue != null)
+                        invocation.TaskSource.SetException(message.ExceptionValue);
+                    invocation.TaskSource.SetResult(message.ReturnValue);
                 }
                 finally
                 {
-                    _resultMap.Remove(id);
+                    _invocationMap.Remove(message.Id);
                 }
             }
-            async Task<object> InterceptAsync(long id)
+            internal void ContinueWithTimeout(long id)
             {
+                if (!_invocationMap.TryGetValue(id, out var invocation))
+                    throw new ArgumentException($"Unknown Message {id} ");
+
                 try
                 {
-                    int time = 0;
-                    while (true)
-                    {
-                        if (!_resultMap.TryGetValue(id, out var resultMessage))
-                        {
-                            if (time > INVOCATION_TIMEOUT)
-                                throw new TimeoutException("Service-Invocation timed out");
-
-                            await Task.Delay(10); // delaywait
-                            time += 10;
-                        }
-                        else
-                        {
-                            if (resultMessage.ExceptionValue != null)
-                                throw resultMessage.ExceptionValue;
-                            return resultMessage.ReturnValue;
-                        }
-                    }
+                    invocation.TaskSource.SetException(new TimeoutException("Service-Invocation timed out"));
                 }
                 finally
                 {
-                    _resultMap.Remove(id);
+                    _invocationMap.Remove(id);
+                }
+            }
+
+            private void TimeoutTimer_Elapsed(object sender, ElapsedEventArgs e)
+            {
+                foreach (ServiceInvocation invocation in _invocationMap.Values.ToList())
+                {
+                    if (invocation.IsTimeout)
+                        ContinueWithTimeout(invocation.Id);
+                }
+
+                if (_invocationMap.Count == 0)
+                    _timeoutTimer.Stop();
+            }
+
+            class ServiceInvocation
+            {
+                internal ServiceInvocation(long id, TaskCompletionSource<object> source, TimeSpan? timeout = null)
+                {
+                    Id = id;
+
+                    TaskSource = source;
+
+                    InvocationTime = DateTime.Now;
+                    MaxInvocationDuration = timeout;
+                }
+
+                internal long Id { get; private set; }
+
+                internal TaskCompletionSource<object> TaskSource { get; set; }
+
+                internal DateTime InvocationTime { get; }
+                internal TimeSpan? MaxInvocationDuration { get; }
+                internal bool IsTimeout
+                {
+                    get => MaxInvocationDuration.HasValue ? InvocationTime + MaxInvocationDuration > DateTime.Now : false;
                 }
             }
         }

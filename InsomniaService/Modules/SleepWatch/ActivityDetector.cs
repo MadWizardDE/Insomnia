@@ -42,7 +42,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 if (_config.IdleMax.HasValue)
                     _examiners.Add(new SleepEnforcer(this, _config.IdleMax.Value));
 
-                if (_config.Log)
+                if (config.SleepWatch.Log)
                     _sleepLogWriter = lazySleepLogWriter.Value;
 
                 _analysisTimer = new Timer();
