@@ -53,7 +53,7 @@ namespace Microsoft.Extensions.Configuration.Xml
 
             var text = string.Concat(element.Nodes().OfType<XText>().Select(t => t.Value));
 
-            if (hasAttributes && !string.IsNullOrWhiteSpace(text))
+            if (!string.IsNullOrWhiteSpace(text))
             {
                 element.Add(new XAttribute(TEXT_ATTRIBUTE_NAME, text));
             }

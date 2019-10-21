@@ -18,7 +18,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         static readonly ProxyGenerator Generator = new ProxyGenerator();
 
-        SessionMinionConfig _config;
+        //SessionMinionConfig _config;
 
         NamedPipeConnection<Message, Message> _pipe;
 
@@ -63,18 +63,25 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         void Pipe_ReceiveMessage(NamedPipeConnection<Message, Message> connection, Message message)
         {
-            if (message is ServiceMessage svcMessage)
+            try
             {
-                var proxy = _services[svcMessage.ServiceType];
+                if (message is ServiceMessage svcMessage)
+                {
+                    var proxy = _services[svcMessage.ServiceType];
 
-                proxy.HandleMessage(svcMessage);
+                    proxy.HandleMessage(svcMessage);
+                }
+                else if (message is UserMessage customMessage)
+                {
+                    MessageArrived?.Invoke(this, new MessageEventArgs(customMessage));
+                }
+                else
+                    throw new ArgumentException($"MessageType[{message.GetType().Name}] unknown");
             }
-            else if (message is UserMessage customMessage)
+            catch (Exception)
             {
-                MessageArrived?.Invoke(this, new MessageEventArgs(customMessage));
+                throw; // TODO EventHandler
             }
-            else
-                throw new ArgumentException($"MessageType[{typeof(Message).Name}] unknown");
         }
         void Pipe_Disconnected(NamedPipeConnection<Message, Message> connection)
         {
@@ -123,7 +130,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                 throw;
             }
 
-            return Generator.CreateInterfaceProxyWithoutTarget<T>(proxy);
+            return (T)Generator.CreateInterfaceProxyWithoutTarget(typeof(T), new Type[] { typeof(IServiceProxy) }, proxy);
         }
 
         internal async Task StopService<T>() where T : class
@@ -184,9 +191,11 @@ namespace MadWizard.Insomnia.Service.Sessions
             return taskSource.Task;
         }
 
-        private class ServiceProxy : IInterceptor
+        private class ServiceProxy : IInterceptor, IServiceProxy
         {
-            internal const int INVOCATION_TIMEOUT = 10000;
+            private static readonly AsyncLocal<Stack<InvocationContext>> _asyncLocalInvocationContext = new AsyncLocal<Stack<InvocationContext>>();
+
+            internal const int DEFAULT_INVOCATION_TIMEOUT = 10000;
 
             SessionMinion __minion;
 
@@ -207,11 +216,9 @@ namespace MadWizard.Insomnia.Service.Sessions
                 _timeoutTimer = new Timer();
                 _timeoutTimer.Interval = 100;
                 _timeoutTimer.AutoReset = true;
-                _timeoutTimer.Elapsed += TimeoutTimer_Elapsed;
 
                 _invocationMap = new ConcurrentDictionary<long, ServiceInvocation>();
             }
-
 
             internal ServiceState State { get; private set; }
 
@@ -226,35 +233,160 @@ namespace MadWizard.Insomnia.Service.Sessions
                     ContinueWithResult(resultMessage);
                 }
                 else
-                    throw new ArgumentException($"Unkown MessageType: {_invocationMap.GetType().Name}");
+                    throw new ArgumentException($"MessageType[{svcMessage.GetType().Name}] unknown");
+            }
+
+            #region InvocationContext
+            class InvocationContext : IInvocationContext
+            {
+                ServiceProxy __proxy;
+
+                internal InvocationContext(ServiceProxy proxy)
+                {
+                    __proxy = proxy;
+                }
+
+                internal InvocationContext(InvocationContext copy)
+                {
+                    this.__proxy = copy.__proxy;
+
+                    this.Timeout = copy.Timeout;
+                }
+
+                public TimeSpan Timeout { get; internal set; } = TimeSpan.FromMilliseconds(DEFAULT_INVOCATION_TIMEOUT);
+
+                void IDisposable.Dispose()
+                {
+                    __proxy.PopInvocationContext(this);
+                }
+            }
+
+            private InvocationContext CurrentInvocationContext
+            {
+                get
+                {
+                    if (_asyncLocalInvocationContext.Value == null)
+                    {
+                        return new InvocationContext(this);
+                    }
+                    else
+                    {
+                        return _asyncLocalInvocationContext.Value.Peek();
+                    }
+                }
+            }
+
+            IInvocationContext IServiceProxy.InvokeWithOptions(TimeSpan? timeout)
+            {
+                var ctx = new InvocationContext(CurrentInvocationContext);
+
+                if (timeout != null)
+                    ctx.Timeout = timeout.Value;
+
+                PushInvocationContext(ctx);
+
+                return ctx;
+            }
+
+            private void PushInvocationContext(InvocationContext ctx)
+            {
+                if (_asyncLocalInvocationContext.Value == null)
+                    _asyncLocalInvocationContext.Value = new Stack<InvocationContext>();
+
+                _asyncLocalInvocationContext.Value.Push(ctx);
+            }
+            private void PopInvocationContext(InvocationContext ctx = null)
+            {
+                if (_asyncLocalInvocationContext.Value != null)
+                {
+                    var stack = _asyncLocalInvocationContext.Value;
+
+                    if (ctx == null || stack.Peek() == ctx)
+                        stack.Pop();
+                    else
+                        stack = new Stack<InvocationContext>(stack.Where(c => c != ctx));
+
+                    if (stack.Count == 0)
+                        _asyncLocalInvocationContext.Value = null;
+                }
+            }
+            #endregion
+
+            #region ServiceInvocation
+            class ServiceInvocation
+            {
+                internal ServiceInvocation(long id, TaskCompletionSource<object> source, TimeSpan timeout)
+                {
+                    Id = id;
+
+                    TaskSource = source;
+
+                    InvocationTime = DateTime.Now;
+                    MaxInvocationDuration = timeout;
+                }
+
+                internal long Id { get; private set; }
+
+                internal TaskCompletionSource<object> TaskSource { get; set; }
+
+                internal DateTime InvocationTime { get; }
+                internal TimeSpan MaxInvocationDuration { get; }
+                internal bool IsTimeout
+                {
+                    get => MaxInvocationDuration < TimeSpan.MaxValue ? DateTime.Now > InvocationTime + MaxInvocationDuration : false;
+                }
             }
 
             void IInterceptor.Intercept(IInvocation invocation)
             {
-                ServiceInvocationMessage message =
-                    new ServiceInvocationMessage(_serviceType, _nextMsgID++,
-                        invocation.Method, invocation.Arguments);
+                object InterceptSync(long id)
+                {
+                    return InterceptAsync(id).Result;
+                }
+                Task<object> InterceptAsync(long id)
+                {
+                    void TimeoutTimer_Elapsed(object sender, ElapsedEventArgs e)
+                    {
+                        foreach (ServiceInvocation invocation in _invocationMap.Values.ToList())
+                        {
+                            if (invocation.IsTimeout)
+                                AbortWithTimeout(invocation.Id);
+                        }
 
-                __minion._pipe.PushMessage(message);
+                        if (_invocationMap.Count == 0)
+                        {
+                            _timeoutTimer.Elapsed -= TimeoutTimer_Elapsed;
+                            _timeoutTimer.Stop();
+                        }
+                    }
 
-                if (invocation.Method.ReturnType == typeof(Task)
-                    || invocation.Method.ReturnType.BaseType == typeof(Task))
-                    invocation.ReturnValue = InterceptAsync(message.Id);
+                    TimeSpan timeout = CurrentInvocationContext.Timeout;
+                    _timeoutTimer.Elapsed += TimeoutTimer_Elapsed;
+                    _timeoutTimer.Enabled = true;
+
+                    var taskSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    _invocationMap.Add(id, new ServiceInvocation(id, taskSource, timeout));
+                    return taskSource.Task;
+                }
+
+                if (invocation.Method.DeclaringType == typeof(IServiceProxy))
+                {
+                    invocation.ReturnValue = invocation.Method.Invoke(this, invocation.Arguments);
+                }
                 else
-                    invocation.ReturnValue = InterceptSync(message.Id);
-            }
+                {
+                    ServiceInvocationMessage message =
+                        new ServiceInvocationMessage(_serviceType, _nextMsgID++,
+                            invocation.Method, invocation.Arguments);
 
-            object InterceptSync(long id)
-            {
-                return InterceptAsync(id).Result;
-            }
-            Task<object> InterceptAsync(long id)
-            {
-                _timeoutTimer.Enabled = true;
+                    __minion._pipe.PushMessage(message);
 
-                var taskSource = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _invocationMap.Add(id, new ServiceInvocation(id, taskSource, TimeSpan.FromMilliseconds(SERVICE_TIMEOUT)));
-                return taskSource.Task;
+                    if (invocation.Method.ReturnType == typeof(Task)
+                        || invocation.Method.ReturnType.BaseType == typeof(Task))
+                        invocation.ReturnValue = InterceptAsync(message.Id);
+                    else
+                        invocation.ReturnValue = InterceptSync(message.Id);
+                }
             }
 
             internal void ContinueWithResult(ServiceInvocationResultMessage message)
@@ -273,7 +405,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                     _invocationMap.Remove(message.Id);
                 }
             }
-            internal void ContinueWithTimeout(long id)
+            internal void AbortWithTimeout(long id)
             {
                 if (!_invocationMap.TryGetValue(id, out var invocation))
                     throw new ArgumentException($"Unknown Message {id} ");
@@ -287,42 +419,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                     _invocationMap.Remove(id);
                 }
             }
-
-            private void TimeoutTimer_Elapsed(object sender, ElapsedEventArgs e)
-            {
-                foreach (ServiceInvocation invocation in _invocationMap.Values.ToList())
-                {
-                    if (invocation.IsTimeout)
-                        ContinueWithTimeout(invocation.Id);
-                }
-
-                if (_invocationMap.Count == 0)
-                    _timeoutTimer.Stop();
-            }
-
-            class ServiceInvocation
-            {
-                internal ServiceInvocation(long id, TaskCompletionSource<object> source, TimeSpan? timeout = null)
-                {
-                    Id = id;
-
-                    TaskSource = source;
-
-                    InvocationTime = DateTime.Now;
-                    MaxInvocationDuration = timeout;
-                }
-
-                internal long Id { get; private set; }
-
-                internal TaskCompletionSource<object> TaskSource { get; set; }
-
-                internal DateTime InvocationTime { get; }
-                internal TimeSpan? MaxInvocationDuration { get; }
-                internal bool IsTimeout
-                {
-                    get => MaxInvocationDuration.HasValue ? InvocationTime + MaxInvocationDuration > DateTime.Now : false;
-                }
-            }
+            #endregion
         }
 
         #region Events
@@ -345,7 +442,6 @@ namespace MadWizard.Insomnia.Service.Sessions
             public bool ForcedKill { get; private set; }
         }
         #endregion
-
         #region Exceptions
         internal class ServiceErrorException : Exception
         {

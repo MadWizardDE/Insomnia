@@ -19,7 +19,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 {
     class SessionBridge : IDisposable
     {
-        internal const int MINION_TIMEOUT = 50000;
+        internal const int MINION_TIMEOUT = 5000;
 
         IComponentContext _compContext;
 
@@ -75,9 +75,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             if (!_services.TryGetValue(typeof(T), out SessionService service))
                 service = CreateSessionService<T>();
 
-            var sessionServiceRef = new SessionServiceReference<T>((SessionService<T>)service);
-            service.AddReference(sessionServiceRef);
-            return sessionServiceRef;
+            return new SessionServiceReference<T>((SessionService<T>)service);
         }
 
         private void SessionService_ReferencesChanged(object sender, EventArgs args)
@@ -132,7 +130,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             {
                 Logger.LogDebug($"Terminating SessionMinion<{serviceRef.Session.Id}>...");
 
-                await minion.Terminate();
+                await minion.Terminate(MINION_TIMEOUT);
             }
         }
         #endregion
@@ -225,8 +223,8 @@ namespace MadWizard.Insomnia.Service.Sessions
                     timeout += startupDelay;
             }
 
-            if (Logger.IsEnabled(LogLevel.Debug))
-                args.Append($" -DebugLog");
+            if (_config.Logging.LogLevelMinion != LogLevel.None)
+                args.Append($" -LogLevel={_config.Logging.LogLevelMinion}");
 
             // CREATE PROCESS
             int pid = Win32API.CreateProcessInSession($"InsomniaSessionMinion.exe {args}", (uint)sid);

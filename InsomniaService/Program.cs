@@ -47,7 +47,6 @@ namespace MadWizard.Insomnia.Service
                     {
                         loggerBuilder.SetMinimumLevel(config.Logging.LogLevel);
                         loggerBuilder.AddConsole();
-                        loggerBuilder.AddDebug();
                     }
                 })
 

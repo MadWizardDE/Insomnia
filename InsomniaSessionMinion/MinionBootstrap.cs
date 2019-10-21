@@ -8,13 +8,14 @@ using System.Threading;
 using System.Diagnostics;
 
 using Timer = System.Timers.Timer;
+using Microsoft.Extensions.Logging;
 
 namespace MadWizard.Insomnia.Minion
 {
     class MinionBootstrap : IDisposable
     {
         const string CMD_STARTUP_DELAY = "-StartupDelay=";
-        const string CMD_DEBUG_LOG = "-DebugLog";
+        const string CMD_DEBUG_LOG = "-LogLevel=";
 
         int _startupTimeout;
 
@@ -34,7 +35,7 @@ namespace MadWizard.Insomnia.Minion
                 }
                 else if (arg.StartsWith(CMD_DEBUG_LOG))
                 {
-                    DebugLogging = true;
+                    LogLevel = Enum.Parse<LogLevel>(arg.Replace(CMD_DEBUG_LOG, ""));
                 }
             }
         }
@@ -43,7 +44,7 @@ namespace MadWizard.Insomnia.Minion
 
         public SessionMinionConfig Config { get; private set; }
 
-        public bool DebugLogging { get; private set; }
+        public LogLevel LogLevel { get; private set; } = LogLevel.None;
 
         public void WaitForStartup()
         {

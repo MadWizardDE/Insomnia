@@ -6,7 +6,7 @@
     </DebugParameters>
 
 
-    <Logging logLevel="Debug">
+    <Logging logLevel="Debug" logLevelMinion="Debug">
         <EventLog />
     </Logging>
 

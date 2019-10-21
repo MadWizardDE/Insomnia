@@ -13,6 +13,7 @@ namespace MadWizard.Insomnia.Configuration
         public InsomniaConfig()
         {
             LogSweeper = new LogSweeperConfig();
+            Logging = new LoggingConfig();
         }
 
         public int Interval { get; set; } = 60000;
@@ -275,6 +276,7 @@ namespace MadWizard.Insomnia.Configuration
     public class LoggingConfig
     {
         public LogLevel LogLevel { get; set; } = LogLevel.Warning;
+        public LogLevel LogLevelMinion { get; set; } = LogLevel.None;
 
         public EventLogConfig EventLog { get; set; }
 

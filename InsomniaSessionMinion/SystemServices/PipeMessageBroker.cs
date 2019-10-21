@@ -10,19 +10,19 @@ using System.Text;
 
 namespace MadWizard.Insomnia.Minion
 {
-    class PipeMessageBroker : IUserMessenger, ISystemMessenger
+    class PipeMessageBroker : IStartable, IUserMessenger, ISystemMessenger
     {
         IHostApplicationLifetime _lifetime;
 
-        ServiceManager _serviceManager;
+        Lazy<IServiceMessageHandler> _serviceMessageHandler;
 
         NamedPipeClient<Message> _pipeClient;
 
-        public PipeMessageBroker(IHostApplicationLifetime lifetime, ServiceManager serviceManager, NamedPipeClient<Message> pipeClient)
+        public PipeMessageBroker(IHostApplicationLifetime lifetime, Lazy<IServiceMessageHandler> serviceMessageHandler, NamedPipeClient<Message> pipeClient)
         {
             _lifetime = lifetime;
 
-            _serviceManager = serviceManager;
+            _serviceMessageHandler = serviceMessageHandler;
 
             _pipeClient = pipeClient;
             _pipeClient.ServerMessage += PipeClient_ServerMessage;
@@ -33,13 +33,20 @@ namespace MadWizard.Insomnia.Minion
         [Autowired]
         ILogger<PipeMessageBroker> Logger { get; set; }
 
+        void IStartable.Start()
+        {
+            Logger.LogDebug($"{nameof(PipeMessageBroker)} started");
+        }
+
         void ISystemMessenger.SendMessage(SystemMessage message)
         {
+            Logger.LogDebug($"Outgoing SystemMessage -> {message.GetType().Name}");
+
             _pipeClient.PushMessage(message);
         }
         void IUserMessenger.SendMessage(UserMessage message)
         {
-            Logger.LogDebug($"Outgoing message -> {message.GetType().Name}");
+            Logger.LogDebug($"Outgoing UserMessage -> {message.GetType().Name}");
 
             _pipeClient.PushMessage(message);
         }
@@ -47,15 +54,15 @@ namespace MadWizard.Insomnia.Minion
         #region PipeClient
         private void PipeClient_ServerMessage(NamedPipeConnection<Message, Message> connection, Message message)
         {
-            Logger.LogDebug($"Incoming message <- {message.GetType().Name}");
+            Logger.LogDebug($"Incoming Message <- {message.GetType().Name}");
 
             if (message is ServiceMessage svcMessage)
             {
-                _serviceManager.HandleMessage(svcMessage);
+                _serviceMessageHandler.Value.HandleMessage(svcMessage);
             }
             else if (message is TerminateMessage)
             {
-                Logger.LogInformation("Terminated, Shutting down...");
+                Logger.LogInformation("Terminated. Shutting down...");
 
                 _lifetime.StopApplication();
             }
@@ -66,7 +73,7 @@ namespace MadWizard.Insomnia.Minion
         }
         private void PipeClient_Disconnected(NamedPipeConnection<Message, Message> connection)
         {
-            Logger.LogError("Disconnected, Shutting down...");
+            Logger.LogError("Disconnected. Shutting down...");
 
             _lifetime.StopApplication();
         }

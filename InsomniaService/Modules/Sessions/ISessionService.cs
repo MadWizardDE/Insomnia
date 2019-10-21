@@ -12,9 +12,8 @@ namespace MadWizard.Insomnia.Service.Sessions
 
     public interface IServiceReference<T> where T : class
     {
-        public abstract ISession Session { get; }
+        ISession Session { get; }
 
-        public abstract T Service { get; }
+        T Service { get; }
     }
-
 }

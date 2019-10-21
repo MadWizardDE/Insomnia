@@ -9,10 +9,11 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MadWizard.Insomnia.Minion
 {
-    class ServiceManager
+    class ServiceManager : IStartable, IServiceMessageHandler
     {
         ILifetimeScope _lifetimeScope;
 
@@ -32,7 +33,7 @@ namespace MadWizard.Insomnia.Minion
         [Autowired]
         ILogger<ServiceManager> Logger { get; set; }
 
-        public void HandleMessage(ServiceMessage message)
+        void IServiceMessageHandler.HandleMessage(ServiceMessage message)
         {
             try
             {
@@ -78,6 +79,11 @@ namespace MadWizard.Insomnia.Minion
             }
         }
 
+        void IStartable.Start()
+        {
+            Logger.LogDebug($"{nameof(ServiceManager)} started");
+        }
+
         #region Service-Control
         private void StartService(Type serviceType)
         {
@@ -88,9 +94,9 @@ namespace MadWizard.Insomnia.Minion
 
             _services.Add(serviceType, new Service(serviceType, serviceScope));
 
-            _messenger.SendMessage(new ServiceStateMessage(serviceType, ServiceState.STARTED));
+            Logger.LogDebug($"{serviceType.Name} started");
 
-            Logger.LogDebug($"Service {serviceType.Name} started");
+            _messenger.SendMessage(new ServiceStateMessage(serviceType, ServiceState.STARTED));
         }
         private void StopService(Type serviceType)
         {
@@ -101,9 +107,9 @@ namespace MadWizard.Insomnia.Minion
 
             _services.Remove(serviceType);
 
-            _messenger.SendMessage(new ServiceStateMessage(serviceType, ServiceState.STOPPED));
+            Logger.LogDebug($"{serviceType.Name} stopped");
 
-            Logger.LogDebug($"Service {serviceType.Name} stopped");
+            _messenger.SendMessage(new ServiceStateMessage(serviceType, ServiceState.STOPPED));
         }
         #endregion
 
@@ -135,6 +141,16 @@ namespace MadWizard.Insomnia.Minion
                 object obj = _serviceScope.Resolve(_serviceType);
 
                 object result = method.Invoke(obj, parameters);
+
+                if (result is Task task)
+                {
+                    var property = task.GetType().GetProperty("Result", BindingFlags.Public | BindingFlags.Instance);
+
+                    if (property != null)
+                        result = property.GetValue(task);
+                    else
+                        result = null;
+                }
 
                 return result;
             }
