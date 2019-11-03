@@ -24,6 +24,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         Dictionary<Type, ServiceProxy> _services;
 
+        bool _terminating = false;
         bool _forcedKill = false;
 
         internal SessionMinion(ISession session, Process process, NamedPipeConnection<Message, Message> pipe, SessionMinionConfig config)
@@ -63,31 +64,34 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         void Pipe_ReceiveMessage(NamedPipeConnection<Message, Message> connection, Message message)
         {
-            try
-            {
-                if (message is ServiceMessage svcMessage)
+            Task.Run(() =>
                 {
-                    var proxy = _services[svcMessage.ServiceType];
+                    try
+                    {
+                        if (message is ServiceMessage svcMessage)
+                        {
+                            var proxy = _services[svcMessage.ServiceType];
 
-                    proxy.HandleMessage(svcMessage);
-                }
-                else if (message is UserMessage customMessage)
-                {
-                    MessageArrived?.Invoke(this, new MessageEventArgs(customMessage));
-                }
-                else
-                    throw new ArgumentException($"MessageType[{message.GetType().Name}] unknown");
-            }
-            catch (Exception)
-            {
-                throw; // TODO EventHandler
-            }
+                            proxy.HandleMessage(svcMessage);
+                        }
+                        else if (message is UserMessage customMessage)
+                        {
+                            MessageArrived?.Invoke(this, new MessageEventArgs(customMessage));
+                        }
+                        else
+                            throw new ArgumentException($"MessageType[{message.GetType().Name}] unknown");
+                    }
+                    catch (Exception)
+                    {
+                        throw; // TODO EventHandler
+                    }
+                });
         }
         void Pipe_Disconnected(NamedPipeConnection<Message, Message> connection)
         {
             Thread.Sleep(500);
 
-            if (!Process.HasExited)
+            if (!_terminating && !Process.HasExited)
             {
                 _forcedKill = true;
 
@@ -187,6 +191,8 @@ namespace MadWizard.Insomnia.Service.Sessions
             Terminated += (s, e) => taskSource.SetResult(true);
 
             _pipe.PushMessage(new TerminateMessage());
+
+            _terminating = true;
 
             return taskSource.Task;
         }
@@ -398,7 +404,8 @@ namespace MadWizard.Insomnia.Service.Sessions
                 {
                     if (message.ExceptionValue != null)
                         invocation.TaskSource.SetException(message.ExceptionValue);
-                    invocation.TaskSource.SetResult(message.ReturnValue);
+                    else
+                        invocation.TaskSource.SetResult(message.ReturnValue);
                 }
                 finally
                 {

@@ -29,24 +29,8 @@ namespace MadWizard.Insomnia.Service.Lifetime
         {
             if (IsWindowsService())
             {
-                // Host.CreateDefaultBuilder uses CurrentDirectory for VS scenarios, but CurrentDirectory for services is c:\Windows\System32.
-                //hostBuilder.UseContentRoot(AppContext.BaseDirectory);
                 hostBuilder.UseContentRoot(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Locati‌​on));
-                hostBuilder.ConfigureLogging((hostingContext, logging) =>
-                {
-                    logging.AddEventLog();
-                });
-                hostBuilder.ConfigureServices((hostContext, services) =>
-                {
-                    services.AddSingleton<IHostLifetime, WindowsServiceLifetime>();
-                    services.Configure<EventLogSettings>(settings =>
-                    {
-                        if (string.IsNullOrEmpty(settings.SourceName))
-                        {
-                            settings.SourceName = hostContext.HostingEnvironment.ApplicationName;
-                        }
-                    });
-                });
+                hostBuilder.ConfigureServices((ctx, services) => services.AddSingleton<IHostLifetime, InsomniaServiceLifetime>());
             }
 
             return hostBuilder;

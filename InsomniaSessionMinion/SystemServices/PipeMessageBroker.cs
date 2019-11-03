@@ -7,10 +7,11 @@ using NamedPipeWrapper;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace MadWizard.Insomnia.Minion
 {
-    class PipeMessageBroker : IStartable, IUserMessenger, ISystemMessenger
+    class PipeMessageBroker : IStartable, IUserMessenger, ISystemMessenger, IDisposable
     {
         IHostApplicationLifetime _lifetime;
 
@@ -80,6 +81,14 @@ namespace MadWizard.Insomnia.Minion
         private void PipeClient_Error(Exception exception)
         {
             Logger.LogError(exception, "PipeClient Error");
+        }
+
+        void IDisposable.Dispose()
+        {
+            _pipeClient?.Stop();
+            _pipeClient = null;
+
+            Logger.LogDebug($"{nameof(PipeMessageBroker)} stopped");
         }
         #endregion
     }

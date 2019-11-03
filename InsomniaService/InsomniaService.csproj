@@ -5,6 +5,7 @@
     <UserSecretsId>dotnet-InsomniaService-CA259554-4F36-489F-A3C7-1D57E68C4B66</UserSecretsId>
     <RootNamespace>MadWizard.Insomnia.Service</RootNamespace>
     <StartupObject>MadWizard.Insomnia.Service.Program</StartupObject>
+    <ApplicationIcon>moon3.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,6 +27,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="3.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="3.0.0" />
     <PackageReference Include="NamedPipeWrapper.NetStandard" Version="1.5.0" />
+    <PackageReference Include="NLog.Extensions.Logging" Version="1.6.1" />
   </ItemGroup>
 
   <ItemGroup>

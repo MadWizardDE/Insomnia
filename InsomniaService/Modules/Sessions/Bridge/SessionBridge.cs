@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -56,10 +57,11 @@ namespace MadWizard.Insomnia.Service.Sessions
         ILogger<SessionBridge> Logger { get; set; }
 
         #region SessionManager-Callbacks
-        private void SessionManager_UserLogin(object sender, UserEventArgs args)
+        private void SessionManager_UserLogin(object sender, UserLoginEventArgs args)
         {
-            foreach (SessionService service in _services.Values)
-                service.AddSession(args.Session);
+            if (args.IsSessionCreated)
+                foreach (SessionService service in _services.Values)
+                    service.AddSession(args.Session);
         }
         private void SessionManager_UserLogout(object sender, UserEventArgs args)
         {
@@ -223,7 +225,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                     timeout += startupDelay;
             }
 
-            if (_config.Logging.LogLevelMinion != LogLevel.None)
+            if (_config.Logging.FileSystemLog != null && _config.Logging.LogLevelMinion != LogLevel.None)
                 args.Append($" -LogLevel={_config.Logging.LogLevelMinion}");
 
             // CREATE PROCESS
@@ -286,7 +288,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             var session = (sender as SessionMinion).Session;
 
-            var method = typeof(SessionBridge).GetMethod(nameof(HandleMessage)).MakeGenericMethod(args.Message.GetType());
+            var method = typeof(SessionBridge).GetMethod(nameof(HandleMessage), BindingFlags.Instance | BindingFlags.NonPublic).MakeGenericMethod(args.Message.GetType());
 
             method.Invoke(this, new object[] { session, args.Message });
         }

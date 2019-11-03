@@ -56,8 +56,6 @@ namespace MadWizard.Insomnia.Service.Sessions
             }
         }
 
-
-
         [Autowired]
         ILogger<SessionManager> Logger { get; set; }
 
@@ -68,7 +66,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         public IEnumerable<ISession> Sessions => _sessions.Values;
         public ISession ConsoleSession => _sessions[(int)WTSGetActiveConsoleSessionId()];
 
-        public event EventHandler<UserEventArgs> UserLogin;
+        public event EventHandler<UserLoginEventArgs> UserLogin;
         public event EventHandler<UserEventArgs> UserIdle
         {
             add
@@ -118,7 +116,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             {
                 foreach (var instance in _ssUserIdleService.Value)
                 {
-                    Session session = (Session)instance.Service;
+                    Session session = (Session)instance.Session;
 
                     session.IsIdle = null;
                     session.IdleTime = instance.Service.IdleTime;
@@ -174,7 +172,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             Session session;
             if (desc.Reason == SessionChangeReason.SessionLogon)
-                _sessions[desc.SessionId] = session = new Session(_tsServer.GetSession(desc.SessionId));
+                session = new Session(_tsServer.GetSession(desc.SessionId));
             else
                 session = _sessions[desc.SessionId];
 
@@ -208,7 +206,12 @@ namespace MadWizard.Insomnia.Service.Sessions
                 {
                     Logger.LogInformation(InsomniaEventId.USER_LOGIN, $"User login: {clientUser}");
 
-                    UserLogin?.Invoke(this, new UserEventArgs(session));
+                    bool createSession = !_sessions.ContainsKey(desc.SessionId);
+
+                    if (createSession)
+                        _sessions.Add(session.Id, session);
+
+                    UserLogin?.Invoke(this, new UserLoginEventArgs(session, createSession));
                 }
 
             if (desc.Reason == SessionChangeReason.SessionLogoff)

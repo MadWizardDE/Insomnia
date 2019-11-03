@@ -7,6 +7,7 @@ using Microsoft.WindowsAPICodePack.Net;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -65,7 +66,10 @@ namespace MadWizard.Insomnia.Service.SleepWatch
             {
                 foreach (HostInfo info in hostInfos)
                 {
-                    var target = new NetworkTarget(info.Name, info.PhysicalAddress);
+                    var target = new NetworkTarget(info.Name, info.PhysicalAddress)
+                    {
+                        WakeMode = info.Mode
+                    };
                     target.WakeModeChanged += OnWakeModeChanged;
                     network.AddTarget(target);
                 }
@@ -90,10 +94,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 _wakeTimer.Interval = _config.Interval;
                 _wakeTimer.Elapsed += OnWakeEvent;
 
-                if (_configCommander.RequiredPresence == WakePresence.User)
-                    _sessionManager.UserPresent += OnWakeEvent;
-
-                OnWakeEvent(this, EventArgs.Empty);
+                OnRequiredPresence(this, EventArgs.Empty);
             }
         }
 
@@ -104,9 +105,16 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 case PowerBroadcastStatus.ResumeSuspend:
                     if (_configCommander.RequiredPresence == WakePresence.System)
                         OnRequiredPresence(this, EventArgs.Empty);
+                    else if (_configCommander.RequiredPresence == WakePresence.User)
+                        if (_sessionManager.ConsoleActive && !_sessionManager.ConsoleLocked)
+                            _sessionManager.UserPresent += OnRequiredPresence;
+                        else
+                            _sessionManager.UserLogin += OnRequiredPresence;
                     break;
 
                 case PowerBroadcastStatus.Suspend:
+                    _sessionManager.UserPresent -= OnWakeEvent;
+                    _sessionManager.UserLogin -= OnWakeEvent;
                     _wakeTimer?.Stop();
                     break;
             }
@@ -125,14 +133,24 @@ namespace MadWizard.Insomnia.Service.SleepWatch
             if (targetNetwork == null)
                 throw new InvalidOperationException("NetworkTarget unknown");
 
+            WakeTarget(sender as NetworkTarget);
+
             NetworkTargetChanged?.Invoke(this, new NetworkTargetEventArgs(targetNetwork, target));
         }
         private void OnRequiredPresence(object sender, EventArgs args)
         {
-            if (_configCommander.Wake == WakeFrequency.OneTime)
+            _sessionManager.UserPresent -= OnWakeEvent;
+            _sessionManager.UserLogin -= OnWakeEvent;
+
+            if (_configCommander.Wake != WakeFrequency.Never)
+            {
                 OnWakeEvent(sender, args);
-            else if (_configCommander.Wake == WakeFrequency.Continuous)
-                _wakeTimer.Start();
+
+                if (_configCommander.Wake == WakeFrequency.Continuous)
+                {
+                    _wakeTimer.Start();
+                }
+            }
         }
         private void OnWakeEvent(object sender, EventArgs args)
         {
@@ -146,8 +164,36 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
             network.Connection = Network.NetworkConnection.None;
             foreach (var net in NetworkListManager.GetNetworks(NetworkConnectivityLevels.Connected))
-                if (network.Name.Equals(net.Name.ToLower()) || network.Guid == net.NetworkId)
-                    network.Connection = Network.NetworkConnection.Ethernet;
+                if (network.Name.ToLower().Equals(net.Name.ToLower()) || network.Guid == net.NetworkId)
+                {
+                    static NetworkInterface FindNIC(string adapterId)
+                    {
+                        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+                        {
+                            string nicId = nic.Id.Replace("{", "").Replace("}", "");
+                            if (nicId.Equals(adapterId, StringComparison.InvariantCultureIgnoreCase))
+                                return nic;
+                        }
+
+                        return null;
+                    }
+                    static bool IsNetworkWireless(Microsoft.WindowsAPICodePack.Net.Network net)
+                    {
+                        foreach (var con in net.Connections)
+                        {
+                            var nic = FindNIC(con.AdapterId.ToString());
+
+                            if (nic != null && nic.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
+                                return true;
+                        }
+
+                        return false;
+                    }
+
+                    network.Connection = IsNetworkWireless(net)
+                        ? Network.NetworkConnection.WiFi
+                            : Network.NetworkConnection.Ethernet;
+                }
 
             if (wasAvailable != network.IsAvailable)
                 NetworkAvailabilityChanged?.Invoke(this, new NetworkEventArgs(network));
@@ -166,9 +212,6 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
         void IDisposable.Dispose()
         {
-            _sessionManager.UserPresent -= OnWakeEvent;
-            _sessionManager.UserLogin -= OnWakeEvent;
-
             _wakeTimer?.Stop();
             _wakeTimer?.Dispose();
             _wakeTimer = null;
@@ -241,8 +284,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                             }
                         }
 
-                        if (Logger.IsEnabled(LogLevel.Debug))
-                            Logger.LogDebug(InsomniaEventId.WAKE_ON_LAN, $"Sending WOL -> {ip}:{_config.Port} ({target.Name})");
+                        Logger.LogDebug(InsomniaEventId.WAKE_ON_LAN, $"Sending WOL -> {ip}:{_config.Port} ({target.Name})");
 
                         SendMagicPacket(target.PhysicalAddress, ip, _config.Port);
                     }
@@ -292,7 +334,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
         {
             IDictionary<string, NetworkTarget> _targets;
 
-            internal Network(string name = null, Guid? guid = null)
+            internal Network(string name = "", Guid? guid = null)
             {
                 Name = name;
                 Guid = guid;
@@ -325,6 +367,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 None = 0,
 
                 Ethernet,
+                WiFi,
                 Moonrise
             }
         }
@@ -351,7 +394,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 get
                 {
                     if (!AvailableWakeModes.Contains(_wakeMode))
-                        if (!AvailableWakeModes.Contains(WakeModeWOL.ID))
+                        if (AvailableWakeModes.Contains(WakeModeWOL.ID))
                             return WakeModeWOL.ID;
                         else
                             return WakeModeNone.ID;
@@ -377,11 +420,11 @@ namespace MadWizard.Insomnia.Service.SleepWatch
             public event EventHandler WakeModeChanged;
 
             internal delegate IEnumerable<string> WakeModeEnumerator(NetworkTarget target);
-            private IEnumerable<string> DefaultEnumerator(NetworkTarget target)
+            private static IEnumerable<string> DefaultEnumerator(NetworkTarget target)
             {
                 yield return WakeModeNone.ID;
 
-                if (PhysicalAddress != null)
+                if (target.PhysicalAddress != null)
                     yield return WakeModeWOL.ID;
             }
         }

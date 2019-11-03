@@ -18,6 +18,12 @@ using MadWizard.Insomnia.Service.Sessions;
 using MadWizard.Insomnia.Service.SleepWatch;
 using MadWizard.Insomnia.Service.UI;
 using MadWizard.Insomnia.Service.Debug;
+using Microsoft.Extensions.Logging.EventLog;
+using System.Reflection;
+using NLog.Config;
+using NLog.Targets;
+using NLog.Extensions.Logging;
+using System.Runtime.InteropServices;
 
 namespace MadWizard.Insomnia.Service
 {
@@ -33,48 +39,81 @@ namespace MadWizard.Insomnia.Service
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .UseInsomniaServiceLifetime()
-                .ConfigureAppConfiguration(builder =>
-                {
-                    builder.AddCustomXmlFile(@"C:\Users\Kevin\Source\Repos\Insomnia\config.xml");
-                })
-                .ConfigureLogging((ctx, loggerBuilder) =>
-                {
-                    var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);
-
-                    if (config.Logging != null)
+                Host.CreateDefaultBuilder(args)
+                    .UseInsomniaServiceLifetime()
+                    .ConfigureAppConfiguration(builder =>
                     {
-                        loggerBuilder.SetMinimumLevel(config.Logging.LogLevel);
-                        loggerBuilder.AddConsole();
-                    }
-                })
-
-                .UseServiceProviderFactory(new AutofacServiceProviderFactory())
-                .ConfigureContainer<ContainerBuilder>((ctx, builder) =>
-                {
-                    var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);
-
-                    builder.RegisterInstance(config);
-
-                    builder.RegisterModule<SessionModule>();
-
-                    if (config.SleepWatch != null)
+                        builder.AddCustomXmlFile(@"C:\Users\Kevin\Source\Repos\Insomnia\config.xml");
+                    })
+                    .ConfigureLogging((ctx, loggerBuilder) =>
                     {
-                        builder.RegisterModule<SleepWatchModule>();
-                    }
+                        var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);
 
-                    if (config.UserInterface != null)
+                        if (config.Logging != null && config.Logging.LogLevel != LogLevel.None)
+                        {
+                            if (config.Logging.FileSystemLog != null)
+                                ConfigureNLog(loggerBuilder);
+
+                            if (config.Logging.EventLog != null)
+                                loggerBuilder.AddEventLog();
+
+                            loggerBuilder.SetMinimumLevel(config.Logging.LogLevel);
+                            loggerBuilder.AddConsole();
+                        }
+                    })
+
+                    .UseServiceProviderFactory(new AutofacServiceProviderFactory())
+                    .ConfigureContainer<ContainerBuilder>((ctx, builder) =>
                     {
-                        builder.RegisterModule<UserInterfaceModule>();
-                    }
+                        var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);
 
-                    builder.RegisterType<LogFileSweeper>().AttributedPropertiesAutowired().AsImplementedInterfaces().SingleInstance();
-                })
-                .ConfigureServices((hostContext, services) =>
+                        builder.RegisterInstance(config);
+
+                        builder.RegisterModule<SessionModule>();
+
+                        if (config.SleepWatch != null)
+                        {
+                            builder.RegisterModule(new SleepWatchModule(config.SleepWatch));
+                        }
+
+                        if (config.UserInterface != null)
+                        {
+                            builder.RegisterModule(new UserInterfaceModule(config.UserInterface));
+                        }
+
+                        builder.RegisterType<LogFileSweeper>().AttributedPropertiesAutowired().AsImplementedInterfaces().SingleInstance();
+                    })
+                    .ConfigureServices((hostContext, services) =>
+                    {
+                        services.AddHostedService<TestWorker>();
+
+                        services.Configure<EventLogSettings>(settings =>
+                        {
+                            if (string.IsNullOrEmpty(settings.SourceName))
+                            {
+                                settings.SourceName = hostContext.HostingEnvironment.ApplicationName;
+                            }
+                        });
+                    })
+                ;
+
+        private static void ConfigureNLog(ILoggingBuilder loggingBuilder)
+        {
+            var config = new LoggingConfiguration();
+            {
+                FileInfo insomniaEXE = new FileInfo(Assembly.GetExecutingAssembly().Location);
+
+                var targetFile = new FileTarget("file")
                 {
-                    services.AddHostedService<TestWorker>();
-                })
-            ;
+                    FileName = Path.Combine(insomniaEXE.DirectoryName, "insomnia.log"),
+                    Layout = "${longdate} ${level} ${message}  ${exception}"
+                };
+
+                config.AddTarget(targetFile);
+                config.AddRuleForAllLevels(targetFile);
+            }
+
+            loggingBuilder.AddNLog(config);
+        }
     }
 }

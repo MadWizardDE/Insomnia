@@ -2,6 +2,7 @@
 using MadWizard.Insomnia.Configuration;
 using MadWizard.Insomnia.Service.Lifetime;
 using MadWizard.Insomnia.Service.Sessions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ServiceProcess;
@@ -16,32 +17,32 @@ namespace MadWizard.Insomnia.Service.UI
     {
         WindowCleanerConfig _config;
 
-        Func<Owned<ISessionService<IWindowCleanerService>>> _WindowCleanerFactory;
+        Func<Owned<ISessionService<IWindowManagerService>>> _WindowManagerFactory;
 
-        public WindowController(InsomniaConfig config, Func<Owned<ISessionService<IWindowCleanerService>>> WindowCleanerFactory)
+        public WindowController(InsomniaConfig config, Func<Owned<ISessionService<IWindowManagerService>>> WindowManagerFactory)
         {
-            _config = config.UserInterface?.WindowCleaner;
+            _config = config.UserInterface.WindowCleaner;
 
-            _WindowCleanerFactory = WindowCleanerFactory;
+            _WindowManagerFactory = WindowManagerFactory;
         }
 
         void IPowerEventHandler.OnPowerEvent(PowerBroadcastStatus status)
         {
             void WipeTimer_Elapsed(object sender, ElapsedEventArgs e)
             {
-                var cleaner = _WindowCleanerFactory();
+                var manager = _WindowManagerFactory();
 
                 foreach (var pattern in _config.TitlePattern.Values)
-                    foreach (var service in cleaner.Value)
+                    foreach (var service in manager.Value)
                         service.Service.Wipe(pattern.Text);
 
-                cleaner.Dispose();
+                manager.Dispose();
             }
 
             switch (status)
             {
                 case PowerBroadcastStatus.ResumeSuspend:
-                    if (_config != null && _config.TitlePattern.Count > 0)
+                    if (_config.TitlePattern.Count > 0)
                     {
                         Timer wipeTimer = new Timer();
                         wipeTimer.Interval = 2000;

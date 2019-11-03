@@ -4,6 +4,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Net.NetworkInformation;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 {
@@ -13,13 +14,13 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 
         public PingHostDetector(InsomniaConfig config)
         {
-            var scanConfig = config.SleepWatch?.ActivityDetector?.PingHost;
+            var scanConfig = config.SleepWatch.ActivityDetector.PingHost;
 
-            if (scanConfig != null)
-            {
-                _hosts = scanConfig.Host.Values.Select(h => h.Name).ToArray();
-            }
+            _hosts = scanConfig.Host.Values.Select(h => h.Name).ToArray();
         }
+
+        [Autowired]
+        ILogger<PingHostDetector> Logger { get; set; }
 
         (string[] tokens, bool busy) ActivityDetector.IDetector.Scan()
         {
@@ -28,17 +29,10 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
             using (Ping ping = new Ping())
                 foreach (string host in _hosts)
                 {
-                    try
+                    PingReply reply = ping.Send(host);
+                    if (reply.Status == IPStatus.Success)
                     {
-                        PingReply reply = ping.Send(host);
-                        if (reply.Status == IPStatus.Success)
-                        {
-                            tokenList.Add(host);
-                        }
-                    }
-                    catch (PingException)
-                    {
-                        // loggen?
+                        tokenList.Add(host);
                     }
                 }
 

@@ -8,7 +8,7 @@ namespace MadWizard.Insomnia.Service.Sessions
     /*
      * Klasse zum Fensterputzen nach dem Standby / Anmeldung über RDP.
      */
-    public interface IWindowCleanerService
+    public interface IWindowManagerService
     {
         public Task Wipe(string title);
     }

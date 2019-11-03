@@ -2,6 +2,7 @@
 using MadWizard.Insomnia.Configuration;
 using MadWizard.Insomnia.Service.Sessions;
 using MadWizard.Insomnia.Service.SleepWatch;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,10 +17,6 @@ namespace MadWizard.Insomnia.Service.UI
 {
     class NotificationAreaController : IStartable, ISessionMessageHandler<ConfigureWakeOnLANMessage>, ISessionMessageHandler<ConfigureWakeOptionMessage>
     {
-        static readonly string[] WAKE_MODES_DEFAULT = { WakeModeNone.ID, WakeModeWOL.ID };
-
-        static readonly object[] WAKE_OPTIONS_CHECKED = { true, false };
-
         UserInferfaceConfig _configUI;
         UserInferfaceConfig.TrayMenuConfig _configTray;
 
@@ -46,6 +43,9 @@ namespace MadWizard.Insomnia.Service.UI
             if (_commanderConfig != null)
                 _commanderConfig.ConfigChanged += NetworkCommander_ConfigChanged;
         }
+
+        [Autowired]
+        ILogger<NotificationAreaController> Logger { get; set; }
 
         void IStartable.Start()
         {
@@ -74,9 +74,9 @@ namespace MadWizard.Insomnia.Service.UI
             bool moon = args.Network.Connection == Network.NetworkConnection.Moonrise;
 
             if (!avail)
-                foreach (INotificationAreaService service in _sessionService)
+                foreach (var svRef in _sessionService)
                 {
-                    service.ShowNotificationAsync(NotifyMessageType.Warning, "Insomnia", $"Verbindung zu Netzwerk unterbrochen.").Wait();
+                    svRef.Service.ShowNotificationAsync(NotifyMessageType.Warning, "Insomnia", $"Verbindung zu Netzwerk unterbrochen.").Wait();
 
                     Thread.Sleep(500);
                 }
@@ -84,12 +84,12 @@ namespace MadWizard.Insomnia.Service.UI
             UpdateNotifyArea(args.Network);
 
             if (avail)
-                foreach (INotificationAreaService service in _sessionService)
+                foreach (var svRef in _sessionService)
                 {
                     if (moon)
-                        service.ShowNotificationAsync(NotifyMessageType.None, "Insomnia", $"Verbindung zu Netzwerk wiederhergestellt (via Moonrise).").Wait();
+                        svRef.Service.ShowNotificationAsync(NotifyMessageType.None, "Insomnia", $"Verbindung zu Netzwerk wiederhergestellt (via Moonrise).").Wait();
                     else
-                        service.ShowNotificationAsync(NotifyMessageType.None, "Insomnia", $"Verbindung zu Netzwerk wiederhergestellt.").Wait();
+                        svRef.Service.ShowNotificationAsync(NotifyMessageType.None, "Insomnia", $"Verbindung zu Netzwerk wiederhergestellt.").Wait();
                 }
         }
         private void NetworkCommander_NetworkTargetChanged(object sender, NetworkTargetEventArgs args)
@@ -105,8 +105,8 @@ namespace MadWizard.Insomnia.Service.UI
         {
             if (_commanderConfig != null)
             {
-                foreach (INotificationAreaService service in _sessionService)
-                    service.IsMoonriseCommanderEnabled = _configUI.MoonriseCommander != null;
+                foreach (var svRef in _sessionService)
+                    svRef.Service.IsMoonriseCommanderEnabled = _configUI.MoonriseCommander != null;
 
                 foreach (var network in _commander.Networks)
                 {
@@ -128,14 +128,25 @@ namespace MadWizard.Insomnia.Service.UI
         }
         private void UpdateNotifyArea(Network network, NetworkTarget target)
         {
-            foreach (INotificationAreaService service in _sessionService)
+            foreach (var svRef in _sessionService)
             {
-                var wt = new WakeTarget(target.Name, network.Name);
+                NetworkType type = network.Connection switch
+                {
+                    Network.NetworkConnection.Ethernet => NetworkType.Wired,
+                    Network.NetworkConnection.WiFi => NetworkType.Wireless,
+                    Network.NetworkConnection.Moonrise => NetworkType.Remote,
+                    _ => NetworkType.Unknown
+                };
+
+                var wt = new WakeTarget(target.Name, network.Name, type);
 
                 wt.AvailableModes = target.AvailableWakeModes.ToArray();
-                if (wt.AvailableModes.Equals(WAKE_MODES_DEFAULT))
+
+                if (wt.AvailableModes.Length == 2
+                    && wt.AvailableModes.Contains(WakeModeNone.ID)
+                    && wt.AvailableModes.Contains(WakeModeWOL.ID))
                 {
-                    wt.AvailableModes = WAKE_OPTIONS_CHECKED;
+                    wt.AvailableModes = new object[] { true, false };
                     wt.SelectedMode = target.WakeMode == WakeModeWOL.ID;
                 }
                 else
@@ -143,17 +154,31 @@ namespace MadWizard.Insomnia.Service.UI
                     wt.SelectedMode = target.WakeMode;
                 }
 
-                if (network.IsAvailable)
-                    service.ShowWakeTarget(wt);
-                else
-                    service.HideWakeTarget(wt);
+                try
+                {
+                    if (network.IsAvailable)
+                        svRef.Service.ShowWakeTarget(wt).Wait();
+                    else
+                        svRef.Service.HideWakeTarget(wt).Wait();
+                }
+                catch (Exception e)
+                {
+                    Logger.LogError(e, $"UpdateNotifyArea failed (SID={svRef.Session.Id})");
+                }
             }
         }
         private void UpdateNotifyArea(NetworkCommanderConfig config)
         {
-            foreach (INotificationAreaService service in _sessionService)
+            foreach (var svRef in _sessionService)
             {
-                service.ShowWakeOption(new WakeOption(WakeOption.RESOLVE_IP, config.ResolveIPAddress));
+                try
+                {
+                    svRef.Service.ShowWakeOption(new WakeOption(WakeOption.RESOLVE_IP, config.ResolveIPAddress)).Wait();
+                }
+                catch (Exception e)
+                {
+                    Logger.LogError(e, $"UpdateNotifyArea failed (SID={svRef.Session.Id})");
+                }
             }
         }
     }

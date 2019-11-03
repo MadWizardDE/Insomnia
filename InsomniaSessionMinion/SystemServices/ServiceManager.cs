@@ -144,10 +144,12 @@ namespace MadWizard.Insomnia.Minion
 
                 if (result is Task task)
                 {
-                    var property = task.GetType().GetProperty("Result", BindingFlags.Public | BindingFlags.Instance);
+                    if (method.ReturnType.IsGenericType)
+                    {
+                        var property = task.GetType().GetProperty("Result", BindingFlags.Public | BindingFlags.Instance);
 
-                    if (property != null)
                         result = property.GetValue(task);
+                    }
                     else
                         result = null;
                 }

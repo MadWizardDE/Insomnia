@@ -42,20 +42,18 @@ namespace MadWizard.Insomnia.Service.Lifetime
 
         protected override bool OnPowerEvent(PowerBroadcastStatus status)
         {
+            if (status == PowerBroadcastStatus.Suspend)
+                _logger.LogInformation(InsomniaEventId.STANDBY_ENTER, "Entering Standby");
+            if (status == PowerBroadcastStatus.ResumeSuspend)
+            {
+                //if (this[typeof(PowerBroadcastFallback)] != null)
+                //    return true;
+
+                _logger.LogInformation(InsomniaEventId.STANDBY_LEAVE, "Resuming Operation");
+            }
+
             try
             {
-                if (status == PowerBroadcastStatus.Suspend)
-                    _logger.LogInformation(InsomniaEventId.STANDBY_ENTER, "Entering Standby");
-                if (status == PowerBroadcastStatus.ResumeSuspend)
-                {
-                    //if (this[typeof(PowerBroadcastFallback)] != null)
-                    //    return true;
-
-                    _logger.LogInformation(InsomniaEventId.STANDBY_LEAVE, "Resuming Operation");
-
-                    EventLog.WriteEntry("Resuming Operation");
-                }
-
                 foreach (IPowerEventHandler handler in _handlersPowerEvent)
                     handler.OnPowerEvent(status);
             }

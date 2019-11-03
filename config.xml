@@ -1,53 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<InsomniaConfig interval="60000" port="1473">
+<InsomniaConfig interval="10000" port="1473">
 
-    <DebugParameters startupDelay="5000">
-        <TestMessage>Hallo Welt!</TestMessage>
+    <DebugParameters startupDelay="000">
+        <!-- <TestMessage>Hallo Welt!</TestMessage> -->
     </DebugParameters>
 
 
     <Logging logLevel="Debug" logLevelMinion="Debug">
+        <FileSystem />
         <EventLog />
     </Logging>
 
-    <!-- <UserInterface>
+    <UserInterface>
         <TrayMenu>
-            <MoonriseCommander />
+            <!-- <MoonriseCommander /> -->
         </TrayMenu>
 
         <WindowCleaner>
-            <TitlePattern>Netzwerkverbindungen wiederherstellen</TitlePattern>
+            <TitlePattern name="Network Drives">Netzwerkverbindungen wiederherstellen</TitlePattern>
         </WindowCleaner>
-    </UserInterface> -->
+    </UserInterface>
 
-    <SleepWatch log="false">
-        <!-- <NetworkCommander requiredPresence="user" wake="continuous" resolveIPAdress="false">
+    <SleepWatch log="true">
+        <NetworkCommander requiredPresence="user" wake="continuous" resolveIPAdress="false">
             <Network name="Unseen University">
                 <MoonriseEnumerator url="moonrise://ip.madwizard.de:6666/" />
 
                 <Host name="DRAGON" mode="wakeOnLAN" address="08:60:6E:6E:AA:66" />
-                <Host name="KEVINS-PC" mode="none">90:2B:34:32:78:17</Host>
+                <!-- <Host name="KEVINS-PC" mode="none">90:2B:34:32:78:17</Host> -->
             </Network>
-        </NetworkCommander> -->
+        </NetworkCommander>
 
-        <!-- <ActivityDetector idleMax="1">
+         <ActivityDetector> <!-- idleMax="1" -->
             <PingHost>
                 <Host name="KEVINS-PC" />
                 <Host name="KEVINS-LAPTOP" />
             </PingHost>
 
-            <PowerRequests logIfIdle="true" keepAlive="true">
+            <PowerRequests logIfIdle="true" keepAwake="true">
                 <Request name="Audio/Video">vlc,audio,video</Request>
                 <Request name="Backup">backup</Request>
                 <Request name="DVBLink">dvblink_server</Request>
             </PowerRequests>
 
             <RemoteDesktopConnection />
-            <UserIdle />
+            <!-- <UserIdle /> -->
             <WakeOnLAN />
-        </ActivityDetector> -->
+        </ActivityDetector>
 
-        <!-- <AntiSleepWalk /> -->
+        <AntiSleepWalk />
     </SleepWatch>
 
     <!-- <RemoteControl discovery="broadcast" security="none" /> -->

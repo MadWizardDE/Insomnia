@@ -8,14 +8,10 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 {
     class RemoteDesktopDetector : ActivityDetector.IDetector
     {
-        InsomniaConfig _config;
+        ISessionManager _sessionManager;
 
-        SessionManager _sessionManager;
-
-        public RemoteDesktopDetector(InsomniaConfig config, SessionManager sessionManager)
+        public RemoteDesktopDetector(ISessionManager sessionManager)
         {
-            _config = config;
-
             _sessionManager = sessionManager;
         }
 
@@ -23,13 +19,9 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
         {
             List<string> tokenList = new List<string>();
 
-            if (_config.SleepWatch?.ActivityDetector?.RemoteDesktopConnection != null)
-            {
-                foreach (Session session in _sessionManager.Sessions)
-                    if (session.ConnectionState == ConnectionState.Active)
-                        if (session.IsRemoteConnected)
-                            tokenList.Add($"<{session.ClientName}\\{session.UserName}>");
-            }
+            foreach (Session session in _sessionManager.Sessions)
+                if (session.ConnectionState == ConnectionState.Active && session.IsRemoteConnected)
+                    tokenList.Add($"<{session.ClientName}\\{session.UserName}>");
 
             return (tokenList.ToArray(), tokenList.Count > 0);
         }

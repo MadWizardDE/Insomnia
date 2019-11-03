@@ -14,6 +14,11 @@ namespace InsomniaTest
     {
         static async Task Main(string[] args)
         {
+            new TestNetwork().Test();
+            //new TestGeneric().Test();
+
+            Environment.Exit(0);
+
             //await TestProxy();
 
             IDictionary<string, object> dict = new Dictionary<string, object>();

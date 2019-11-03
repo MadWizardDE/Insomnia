@@ -21,8 +21,6 @@ namespace MadWizard.Insomnia.Service.SleepWatch
     {
         const int INITAL_DELAY = 5000;
 
-        ActivityDetectorConfig _config;
-
         SleepLogWriter _sleepLogWriter;
 
         List<IDetector> _detectors;
@@ -32,18 +30,14 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
         public ActivityDetector(InsomniaConfig config,
             IEnumerable<Lazy<IDetector>> lazyDetectors, IEnumerable<Lazy<IExaminer>> lazyExaminers,
-            Lazy<SleepLogWriter> lazySleepLogWriter)
+            SleepLogWriter sleepLogWriter = null)
         {
-            if ((_config = config.SleepWatch?.ActivityDetector) != null)
+            if (config.SleepWatch?.ActivityDetector != null)
             {
                 _detectors = lazyDetectors.Select(l => l.Value).ToList();
                 _examiners = lazyExaminers.Select(l => l.Value).ToList();
 
-                if (_config.IdleMax.HasValue)
-                    _examiners.Add(new SleepEnforcer(this, _config.IdleMax.Value));
-
-                if (config.SleepWatch.Log)
-                    _sleepLogWriter = lazySleepLogWriter.Value;
+                _sleepLogWriter = sleepLogWriter;
 
                 _analysisTimer = new Timer();
                 _analysisTimer.Interval = config.Interval;
@@ -98,35 +92,45 @@ namespace MadWizard.Insomnia.Service.SleepWatch
         {
             try
             {
-                bool idle = true;
+                bool idle = true, error = false;
                 List<string> activityTokens = new List<string>();
                 foreach (IDetector detector in _detectors)
                 {
-                    var (tokens, busy) = detector.Scan();
+                    try
+                    {
+                        var (tokens, busy) = detector.Scan();
 
-                    foreach (string token in tokens)
-                        if (!activityTokens.Contains(token))
-                            activityTokens.Add(token);
+                        foreach (string token in tokens)
+                            if (!activityTokens.Contains(token))
+                                activityTokens.Add(token);
 
-                    if (busy)
-                        idle = false;
+                        if (busy)
+                            idle = false;
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogError(e, "Activity-Scan failed");
+
+                        error = true;
+                    }
                 }
 
-                ActivityAnalysis analysis = new ActivityAnalysis(activityTokens, idle);
-
-                IdleCount = analysis.Idle ? IdleCount + 1 : 0;
-
-                try
+                ActivityAnalysis analysis = new ActivityAnalysis(activityTokens, idle, IdleCount = idle ? IdleCount + 1 : 0)
                 {
-                    foreach (IExaminer examiner in _examiners)
+                    Error = error
+                };
+
+                foreach (IExaminer examiner in _examiners)
+                    try
+                    {
                         examiner.Examine(analysis);
-                }
-                catch (Exception e)
-                {
-                    Logger.LogError(e, "Activity-Examination failed");
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogError(e, "Activity-Examination failed");
 
-                    analysis.Error = true;
-                }
+                        analysis.Error = true;
+                    }
 
                 _sleepLogWriter?.WriteActivity(analysis);
             }
@@ -172,24 +176,23 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 Request = null;
             }
         }
-        private class SleepEnforcer : IExaminer
+        internal class SleepEnforcer : IExaminer
         {
-            ActivityDetector _detector;
-
             int _idleMax;
 
-            internal SleepEnforcer(ActivityDetector detector, int idleMax)
+            public SleepEnforcer(int idleMax)
             {
-                _detector = detector;
-
                 _idleMax = idleMax;
             }
 
+            [Autowired]
+            ILogger<ActivityDetector> Logger { get; set; }
+
             void IExaminer.Examine(ActivityAnalysis anlysis)
             {
-                if (_detector.IdleCount > _idleMax)
+                if (anlysis.IdleCount > _idleMax)
                 {
-                    _detector.Logger.LogDebug(InsomniaEventId.COMPUTER_IDLE, "Computer idle", 5);
+                    Logger.LogInformation(InsomniaEventId.COMPUTER_IDLE, "Computer idle", 5);
 
                     Win32API.EnterStandby();
                 }
@@ -208,11 +211,12 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
     public class ActivityAnalysis
     {
-        internal ActivityAnalysis(IEnumerable<string> tokens, bool idle)
+        internal ActivityAnalysis(IEnumerable<string> tokens, bool idle, int idleCount)
         {
             Tokens = tokens;
 
             Idle = idle;
+            IdleCount = idleCount;
         }
 
         public IEnumerable<string> Tokens { get; private set; }
@@ -220,5 +224,6 @@ namespace MadWizard.Insomnia.Service.SleepWatch
         public bool Idle { get; private set; }
         public bool Error { get; internal set; }
 
+        public int IdleCount { get; private set; }
     }
 }

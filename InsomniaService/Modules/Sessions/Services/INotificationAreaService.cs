@@ -22,10 +22,11 @@ namespace MadWizard.Insomnia.Service.Sessions
         [Serializable]
         public struct WakeTarget
         {
-            public WakeTarget(string name, string nameNetwork = null)
+            public WakeTarget(string name, string nameNetwork = null, NetworkType typeNetwork = NetworkType.Unknown)
             {
                 Name = name;
                 NetworkName = nameNetwork;
+                NetworkType = typeNetwork;
 
                 AvailableModes = null;
                 SelectedMode = null;
@@ -33,6 +34,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             public string Name { get; set; }
             public string NetworkName { get; set; }
+            public NetworkType NetworkType { get; set; }
 
             public object[] AvailableModes { get; set; }
             public object SelectedMode { get; set; }
@@ -51,6 +53,16 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             public string Key { get; private set; }
             public object Value { get; private set; }
+        }
+
+        [Serializable]
+        public enum NetworkType
+        {
+            Unknown = 0,
+
+            Wired,
+            Wireless,
+            Remote
         }
 
         [Serializable]

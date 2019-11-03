@@ -13,11 +13,12 @@ namespace MadWizard.Insomnia.Service.Sessions
         IEnumerable<ISession> Sessions { get; }
         ISession ConsoleSession { get; }
 
-        event EventHandler<UserEventArgs> UserLogin;
+        event EventHandler<UserLoginEventArgs> UserLogin;
         event EventHandler<UserEventArgs> UserIdle;
         event EventHandler<UserEventArgs> UserPresent;
         event EventHandler<UserEventArgs> UserLogout;
 
+        //ISession CreateSession(string username, string password);
     }
 
     public class UserEventArgs : EventArgs
@@ -28,5 +29,14 @@ namespace MadWizard.Insomnia.Service.Sessions
         }
 
         public ISession Session { get; private set; }
+    }
+    public class UserLoginEventArgs : UserEventArgs
+    {
+        internal UserLoginEventArgs(Session session, bool sessionCreated) : base(session)
+        {
+            IsSessionCreated = sessionCreated;
+        }
+
+        public bool IsSessionCreated { get; private set; }
     }
 }

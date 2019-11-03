@@ -1,4 +1,6 @@
 ﻿using Autofac;
+using MadWizard.Insomnia.Service;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -16,6 +18,9 @@ namespace MadWizard.Insomnia.Minion
         {
             StartUIThread();
         }
+
+        [Autowired]
+        ILogger<MinionApplicationContext> Logger { get; set; }
 
         private void StartUIThread()
         {
@@ -80,6 +85,13 @@ namespace MadWizard.Insomnia.Minion
                 throw new InvalidOperationException("No SynchronizationContext");
 
             _syncContext.Post(delegate { action(); }, null);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+
+            Logger.LogDebug($"{nameof(MinionApplicationContext)} stopped");
         }
         #endregion
 

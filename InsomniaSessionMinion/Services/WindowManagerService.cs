@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace MadWizard.Insomnia.Minion.Services
 {
-    class WindowCleanerService : IWindowCleanerService
+    class WindowManagerService : IWindowManagerService
     {
         public Task Wipe(string title)
         {

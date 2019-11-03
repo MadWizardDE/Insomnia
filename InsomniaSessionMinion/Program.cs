@@ -21,6 +21,7 @@ using NLog.Config;
 using NLog.Targets;
 
 using Message = MadWizard.Insomnia.Service.Sessions.Message;
+using System.Runtime.InteropServices;
 
 namespace MadWizard.Insomnia.Minion
 {
@@ -41,6 +42,8 @@ namespace MadWizard.Insomnia.Minion
             }
 
             host.Run();
+
+            Environment.Exit(0); // FIXME
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args, MinionBootstrap boot) =>
@@ -102,22 +105,22 @@ namespace MadWizard.Insomnia.Minion
                     builder.RegisterType<UserIdleTimeService>()
                         .InstancePerMatchingLifetimeScope(typeof(IUserIdleTimeService))
                         .AttributedPropertiesAutowired()
-                        .AsImplementedInterfaces()
+                        .As<IUserIdleTimeService>()
                         ;
-                    builder.RegisterType<WindowCleanerService>()
-                        .InstancePerMatchingLifetimeScope(typeof(IWindowCleanerService))
+                    builder.RegisterType<WindowManagerService>()
+                        .InstancePerMatchingLifetimeScope(typeof(IWindowManagerService))
                         .AttributedPropertiesAutowired()
-                        .AsImplementedInterfaces()
+                        .As<IWindowManagerService>()
                         ;
                     builder.RegisterType<TextMessageService>()
                         .InstancePerMatchingLifetimeScope(typeof(ITextMessageService))
                         .AttributedPropertiesAutowired()
-                        .AsImplementedInterfaces()
+                        .As<ITextMessageService>()
                         ;
                     builder.RegisterType<NotificationAreaService>()
                         .InstancePerMatchingLifetimeScope(typeof(INotificationAreaService))
                         .AttributedPropertiesAutowired()
-                        .AsImplementedInterfaces()
+                        .As<INotificationAreaService>()
                         ;
                     #endregion
                 })

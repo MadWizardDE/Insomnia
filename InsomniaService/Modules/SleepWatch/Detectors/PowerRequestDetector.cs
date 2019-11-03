@@ -15,9 +15,9 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
     {
         PowerRequestConfig _config;
 
-        public PowerRequestDetector(InsomniaConfig config, ActivityDetector activityDetector, SleepLogWriter logWriter)
+        public PowerRequestDetector(InsomniaConfig config, SleepLogWriter logWriter = null)
         {
-            _config = config?.SleepWatch?.ActivityDetector?.PowerRequests;
+            _config = config.SleepWatch.ActivityDetector.PowerRequests;
 
             RequestsDir = new DirectoryInfo(Path.Combine(logWriter.LogsDir.FullName, "requests"));
         }
@@ -34,22 +34,19 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
         {
             var tokenList = new HashSet<string>();
 
-            if (_config != null)
-            {
-                string output = QueryPowerRequests();
+            string output = QueryPowerRequests();
 
-                foreach (var requestInfo in _config.Request.Values)
-                    foreach (string keyWord in requestInfo.Strings)
-                        if (output.IndexOf(keyWord, StringComparison.InvariantCultureIgnoreCase) >= 0)
-                            tokenList.Add($"(({requestInfo.Name}))");
-            }
+            foreach (var requestInfo in _config.Request.Values)
+                foreach (string keyWord in requestInfo.Strings)
+                    if (output.IndexOf(keyWord, StringComparison.InvariantCultureIgnoreCase) >= 0)
+                        tokenList.Add($"(({requestInfo.Name}))");
 
-            return (tokenList.ToArray(), (_config?.KeepAlive ?? false) ? tokenList.Count > 0 : false);
+            return (tokenList.ToArray(), (_config?.KeepAwake ?? false) ? tokenList.Count > 0 : false);
         }
 
         void ActivityDetector.IExaminer.Examine(ActivityAnalysis analysis)
         {
-            if (analysis.Idle)
+            if (analysis.Idle && _config.LogIfIdle)
 
                 try
                 {
@@ -64,6 +61,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
                 {
                     Logger.LogError(e, "Failed to save power requests.");
                 }
+
         }
         #endregion
 

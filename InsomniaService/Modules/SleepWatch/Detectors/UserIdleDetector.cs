@@ -9,14 +9,10 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 {
     class UserIdleDetector : ActivityDetector.IDetector, IDisposable
     {
-        InsomniaConfig _config;
+        ISessionManager _sessionManager;
 
-        SessionManager _sessionManager;
-
-        public UserIdleDetector(InsomniaConfig config, SessionManager sessionManager)
+        public UserIdleDetector(ISessionManager sessionManager)
         {
-            _config = config;
-
             _sessionManager = sessionManager;
             _sessionManager.UserIdle += OnUserEvent;
             _sessionManager.UserPresent += OnUserEvent;
@@ -31,16 +27,13 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
         {
             List<string> tokenList = new List<string>();
 
-            if (_config.SleepWatch?.ActivityDetector?.UserIdle != null)
+            foreach (ISession session in _sessionManager.Sessions)
             {
-                foreach (ISession session in _sessionManager.Sessions)
+                if (session.IsIdle.HasValue && !session.IsIdle.Value)
                 {
-                    if (session.IsIdle.HasValue && session.IsIdle.Value)
-                    {
-                        // Ist der Benutzer NICHT bereits über RDP angemeldet?
-                        if (!_sessionManager[session.Id].IsRemoteConnected)
-                            tokenList.Add("<" + session.UserName + ">");
-                    }
+                    // Ist der Benutzer NICHT bereits über RDP angemeldet?
+                    if (!_sessionManager[session.Id].IsRemoteConnected)
+                        tokenList.Add("<" + session.UserName + ">");
                 }
             }
 

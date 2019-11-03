@@ -1,4 +1,5 @@
-﻿using Autofac.Features.OwnedInstances;
+﻿using Autofac;
+using Autofac.Features.OwnedInstances;
 using MadWizard.Insomnia.Configuration;
 using MadWizard.Insomnia.Service.Lifetime;
 using MadWizard.Insomnia.Service.Sessions;
@@ -16,14 +17,15 @@ namespace MadWizard.Insomnia.Service.SleepWatch
     {
         Timer _presenceTimer;
 
-        SessionManager _sessionManager;
+        ISessionManager _sessionManager;
 
         ActivityDetector.SleepInhibitor _sleepInhibitor;
 
-        public AntiSleepWalk(InsomniaConfig config, SessionManager sessionManager,
-            ActivityDetector.SleepInhibitor sleepInhibitor)
+        public AntiSleepWalk(InsomniaConfig config, ISessionManager sessionManager,
+            ActivityDetector.SleepInhibitor sleepInhibitor = null)
         {
             _sessionManager = sessionManager;
+
             _sleepInhibitor = sleepInhibitor;
 
             if (config.SleepWatch?.AntiSleepWalk != null)
@@ -36,7 +38,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
         }
 
         [Autowired]
-        ILogger<NetworkCommander> Logger { get; set; }
+        ILogger<AntiSleepWalk> Logger { get; set; }
 
         void IPowerEventHandler.OnPowerEvent(PowerBroadcastStatus status)
         {
@@ -75,7 +77,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
         {
             Disarm();
 
-            if (_sleepInhibitor.Request != null)
+            if (_sleepInhibitor?.Request != null)
             {
                 Logger.LogInformation(InsomniaEventId.COMPUTER_BUSY, "Computer busy");
 

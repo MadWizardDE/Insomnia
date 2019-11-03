@@ -45,8 +45,6 @@ namespace MadWizard.Insomnia.Minion.Services
             _notifyIcon.Text = "Insomnia";
             _notifyIcon.Icon = Resources.MoonWhiteOutline12;
             _notifyIcon.Visible = true;
-
-            _vistaMenu = new VistaMenu();
         }
         private void UpdateContextMenu()
         {
@@ -65,6 +63,8 @@ namespace MadWizard.Insomnia.Minion.Services
 
             if (_wakeTargets.Count > 0 || _moonriseCommander)
             {
+                _vistaMenu = new VistaMenu();
+
                 _notifyIcon.ContextMenu = new ContextMenu();
 
                 if (_moonriseCommander)
@@ -77,15 +77,14 @@ namespace MadWizard.Insomnia.Minion.Services
 
                     _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
 
-
                     _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
                 }
 
                 if (_wakeTargets.Count > 0)
                 {
-                    if (_wakeTargets.TryGetValue(null, out var defaultWakeGroup))
+                    if (_wakeTargets.TryGetValue("", out var defaultWakeGroup))
                         AddWakeGroup(defaultWakeGroup.Values);
-                    foreach (var groupName in _wakeTargets.Keys.Where(name => name != null))
+                    foreach (var groupName in _wakeTargets.Keys.Where(name => name != ""))
                         AddWakeGroup(_wakeTargets[groupName].Values);
 
                     if (_wakeOptions.Count > 0)
@@ -131,7 +130,7 @@ namespace MadWizard.Insomnia.Minion.Services
                     }
                 }
 
-                //((System.ComponentModel.ISupportInitialize)(_vistaMenu)).EndInit();
+                ((System.ComponentModel.ISupportInitialize)(_vistaMenu)).EndInit();
 
                 void AddWakeGroup(IEnumerable<WakeTarget> targets)
                 {
@@ -139,14 +138,25 @@ namespace MadWizard.Insomnia.Minion.Services
                         if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Name != "-")
                             _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator hinzufügen (wenn nicht schon vorhanden)
 
+                    NetworkType networkType = targets.Select(t => t.NetworkType).Distinct().Single();
                     string networkName = targets.Select(t => t.NetworkName).Distinct().Single();
 
-                    if (networkName != null)
+                    if (networkName != "")
                     {
                         MenuItem header = new MenuItem(networkName)
                         {
                             Enabled = false
                         };
+
+                        Bitmap networkIcon = networkType switch
+                        {
+                            NetworkType.Wired => Resources.Wired,
+                            NetworkType.Wireless => Resources.WiFi,
+                            NetworkType.Remote => Resources.Moonrise,
+                            _ => Resources.Unknown
+                        };
+
+                        _vistaMenu.SetImage(header, new Bitmap(networkIcon, new Size(16, 16)));
 
                         _notifyIcon.ContextMenu.MenuItems.Add(header);
                     }
@@ -157,7 +167,7 @@ namespace MadWizard.Insomnia.Minion.Services
                         {
                             WakeTarget target = (WakeTarget)(sender as MenuItem).Tag;
 
-                            _userMessenger.SendMessage(new ConfigureWakeOnLANMessage(new WakeTarget { Name = target.Name, SelectedMode = !(bool)target.SelectedMode }));
+                            _userMessenger.SendMessage(new ConfigureWakeOnLANMessage(new WakeTarget { Name = target.Name, NetworkName = target.NetworkName, SelectedMode = !(bool)target.SelectedMode }));
                         }
                         void ContextMenu_ModeClicked(object sender, EventArgs args)
                         {
@@ -181,9 +191,9 @@ namespace MadWizard.Insomnia.Minion.Services
                             foreach (string mode in target.AvailableModes)
                             {
                                 MenuItem itemOption = new MenuItem(mode.ToUpper()); // TODO Name
-                                item.Tag = mode;
-                                item.Checked = mode == selectedMode;
-                                item.Click += ContextMenu_ModeClicked;
+                                itemOption.Tag = mode;
+                                itemOption.Checked = mode == selectedMode;
+                                itemOption.Click += ContextMenu_ModeClicked;
 
                                 // TODO Icon
 
@@ -227,8 +237,6 @@ namespace MadWizard.Insomnia.Minion.Services
                 }
             }
         }
-
-        bool INotificationAreaService.IsMoonriseCommanderEnabled { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public async Task ShowNotificationAsync(NotifyMessageType type, string title, string text, int timeout)
         {

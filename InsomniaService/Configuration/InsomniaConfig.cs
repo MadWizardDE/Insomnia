@@ -111,7 +111,7 @@ namespace MadWizard.Insomnia.Configuration
 
             public class PowerRequestConfig
             {
-                public bool KeepAlive { get; set; } = true;
+                public bool KeepAwake { get; set; } = true;
                 public bool LogIfIdle { get; set; } = false;
 
                 public PowerRequestConfig()
@@ -278,10 +278,10 @@ namespace MadWizard.Insomnia.Configuration
         public LogLevel LogLevel { get; set; } = LogLevel.Warning;
         public LogLevel LogLevelMinion { get; set; } = LogLevel.None;
 
+        public FileSystemLogConfig FileSystemLog { get; set; }
         public EventLogConfig EventLog { get; set; }
 
-        public class EventLogConfig
-        {
-        }
+        public class FileSystemLogConfig { }
+        public class EventLogConfig { }
     }
 }

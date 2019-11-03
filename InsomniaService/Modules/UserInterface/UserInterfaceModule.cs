@@ -1,4 +1,5 @@
 ﻿using Autofac;
+using MadWizard.Insomnia.Configuration;
 using System;
 using System.Collections.Generic;
 using System.ServiceProcess;
@@ -8,19 +9,32 @@ namespace MadWizard.Insomnia.Service.UI
 {
     class UserInterfaceModule : Module
     {
+        UserInferfaceConfig _config;
+
+        public UserInterfaceModule(UserInferfaceConfig config)
+        {
+            _config = config;
+        }
+
         protected override void Load(ContainerBuilder builder)
         {
-            builder.RegisterType<NotificationAreaController>()
-                .AttributedPropertiesAutowired()
-                .AsImplementedInterfaces()
-                .SingleInstance()
-                ;
+            if (_config.TrayMenu != null)
+            {
+                builder.RegisterType<NotificationAreaController>()
+                    .AttributedPropertiesAutowired()
+                    .AsImplementedInterfaces()
+                    .SingleInstance()
+                    ;
+            }
 
-            builder.RegisterType<WindowController>()
-                .AttributedPropertiesAutowired()
-                .AsImplementedInterfaces()
-                .SingleInstance()
-                ;
+            if (_config.WindowCleaner != null)
+            {
+                builder.RegisterType<WindowController>()
+                    .AttributedPropertiesAutowired()
+                    .AsImplementedInterfaces()
+                    .SingleInstance()
+                    ;
+            }
         }
 
 
