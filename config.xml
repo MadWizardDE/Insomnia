@@ -7,7 +7,7 @@
 
 
     <Logging logLevel="Debug" logLevelMinion="Debug">
-        <FileSystem />
+        <FileSystemLog />
         <EventLog />
     </Logging>
 
