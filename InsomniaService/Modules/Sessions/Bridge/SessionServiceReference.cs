@@ -24,6 +24,10 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             return ((ISessionService<T>)_sessionService).SelectSession(session);
         }
+        T ISessionService<T>.SelectSession(int sessionID)
+        {
+            return ((ISessionService<T>)_sessionService).SelectSession(sessionID);
+        }
 
         IEnumerator<IServiceReference<T>> IEnumerable<IServiceReference<T>>.GetEnumerator()
         {
@@ -40,5 +44,6 @@ namespace MadWizard.Insomnia.Service.Sessions
             _sessionService.RemoveReference(this);
             _sessionService = null;
         }
+
     }
 }

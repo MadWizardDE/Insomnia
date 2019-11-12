@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -27,9 +28,13 @@ namespace MadWizard.Insomnia.Service.Lifetime
         /// <returns></returns>
         public static IHostBuilder UseInsomniaServiceLifetime(this IHostBuilder hostBuilder)
         {
+            var insomniaDirectory = new DirectoryInfo(Assembly.GetExecutingAssembly().Locati‌​on).Parent.Parent;
+
+            Directory.SetCurrentDirectory(insomniaDirectory.FullName);
+            hostBuilder.UseContentRoot(insomniaDirectory.FullName);
+
             if (IsWindowsService())
             {
-                hostBuilder.UseContentRoot(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Locati‌​on));
                 hostBuilder.ConfigureServices((ctx, services) => services.AddSingleton<IHostLifetime, InsomniaServiceLifetime>());
             }
 

@@ -31,7 +31,7 @@ namespace MadWizard.Insomnia.Minion.Services
             {
                 _messenger.SendMessage(new UserIdleTimeMessage(IdleTime));
 
-                await Task.Delay(_config.Interval);
+                await Task.Delay(_config.Interval, stoppingToken);
             }
         }
     }

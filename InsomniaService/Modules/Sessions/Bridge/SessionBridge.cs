@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Reflection;
@@ -33,7 +34,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         IDictionary<Type, SessionService> _services;
         IDictionary<ISession, SessionMinion> _minions;
 
-        public SessionBridge(IComponentContext compContext, InsomniaConfig config, ISessionManager sessionManager)
+        public SessionBridge(IComponentContext compContext, InsomniaConfig config, ISessionManager sessionManager, ILogger<SessionBridge> logger)
         {
             _compContext = compContext;
 
@@ -51,6 +52,8 @@ namespace MadWizard.Insomnia.Service.Sessions
             _pipeServer.ClientConnected += PipeServer_ClientConnected;
             _pipeServer.Error += PipeServer_Error;
             _pipeServer.Start();
+
+            logger.LogDebug("SessionBridge started");
         }
 
         [Autowired]
@@ -137,8 +140,6 @@ namespace MadWizard.Insomnia.Service.Sessions
         }
         #endregion
 
-        List<NamedPipeConnection<Message, Message>> _conns = new List<NamedPipeConnection<Message, Message>>();
-
         #region PipeServer
         private void PipeServer_ClientConnected(NamedPipeConnection<Message, Message> pipe)
         {
@@ -197,8 +198,6 @@ namespace MadWizard.Insomnia.Service.Sessions
             }
             #endregion
 
-            _conns.Add(pipe);
-
             /*
              * We wait until the SessionMinion reports for duty.
              */
@@ -228,8 +227,11 @@ namespace MadWizard.Insomnia.Service.Sessions
             if (_config.Logging.FileSystemLog != null && _config.Logging.LogLevelMinion != LogLevel.None)
                 args.Append($" -LogLevel={_config.Logging.LogLevelMinion}");
 
+            var cd = Directory.GetCurrentDirectory();
+            var cmd = $"{Path.Combine(cd, "bin", "InsomniaSessionMinion.exe")} {args}";
+
             // CREATE PROCESS
-            int pid = Win32API.CreateProcessInSession($"InsomniaSessionMinion.exe {args}", (uint)sid);
+            int pid = Win32API.CreateProcessInSession(cmd, cd, (uint)sid);
             // CREATE PROCESS
 
             if (Logger.IsEnabled(LogLevel.Debug))
@@ -306,7 +308,14 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         void IDisposable.Dispose()
         {
+            Logger.LogDebug("SessionBridge shutting down...");
+
+            foreach (SessionService srv in _services.Values.ToArray())
+                DestroySessionService(srv);
+
             _pipeServer.Stop();
+
+            Logger.LogDebug("SessionBridge stopped");
         }
     }
 }

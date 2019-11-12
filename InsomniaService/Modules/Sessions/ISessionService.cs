@@ -8,6 +8,7 @@ namespace MadWizard.Insomnia.Service.Sessions
     public interface ISessionService<T> : IEnumerable<IServiceReference<T>> where T : class
     {
         T SelectSession(ISession session);
+        T SelectSession(int sessionID);
     }
 
     public interface IServiceReference<T> where T : class

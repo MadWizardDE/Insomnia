@@ -38,12 +38,17 @@ namespace MadWizard.Insomnia.Minion.Services
             _userMessenger = messenger;
         }
 
+        Icon TrayIcon
+        {
+            get => _wakeTargets.Count > 0 ? Resources.MoonWhiteOutline12 : Resources.MoonBlackOutline24;
+        }
+
         #region Component Lifecycle
         private void CreateTrayIcon()
         {
             _notifyIcon = new NotifyIcon();
             _notifyIcon.Text = "Insomnia";
-            _notifyIcon.Icon = Resources.MoonWhiteOutline12;
+            _notifyIcon.Icon = TrayIcon;
             _notifyIcon.Visible = true;
         }
         private void UpdateContextMenu()
@@ -60,6 +65,7 @@ namespace MadWizard.Insomnia.Minion.Services
 
             _notifyIcon.DoubleClick -= NotifyIcon_DoubleClick;
             _notifyIcon.ContextMenu?.Dispose();
+            _notifyIcon.Icon = TrayIcon;
 
             if (_wakeTargets.Count > 0 || _moonriseCommander)
             {
@@ -279,6 +285,14 @@ namespace MadWizard.Insomnia.Minion.Services
             _wakeOptions.Remove(option.Key);
 
             await _userInterface.SendActionAsync(UpdateContextMenu);
+        }
+        public Task Recreate()
+        {
+            _userInterface.SendAction(DestroyTrayIcon);
+            _userInterface.SendAction(CreateTrayIcon);
+            _userInterface.SendAction(UpdateContextMenu);
+
+            return Task.CompletedTask;
         }
         #endregion
 

@@ -19,7 +19,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
         {
             List<string> tokenList = new List<string>();
 
-            foreach (Session session in _sessionManager.Sessions)
+            foreach (ISession session in _sessionManager.Sessions)
                 if (session.ConnectionState == ConnectionState.Active && session.IsRemoteConnected)
                     tokenList.Add($"<{session.ClientName}\\{session.UserName}>");
 

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -38,7 +39,6 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
             _udpClient = new UdpClient(config.Port);
 
             Task.Run(() => Listen());
-
         }
 
         [Autowired]
@@ -50,7 +50,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
             {
                 while (true)
                 {
-                    UdpReceiveResult result = await _udpClient.ReceiveAsync();
+                    UdpReceiveResult result = await _udpClient.ReceiveAsync().ConfigureAwait(false);
 
                     try
                     {
@@ -90,6 +90,8 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
             catch (ObjectDisposedException) { }
             catch (Exception e)
             {
+                File.WriteAllText(@"C:\error.log", e.ToString());
+
                 Logger.LogError(e, "Listen UDP-Socket failed.");
             }
         }

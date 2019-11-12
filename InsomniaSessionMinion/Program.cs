@@ -22,6 +22,7 @@ using NLog.Targets;
 
 using Message = MadWizard.Insomnia.Service.Sessions.Message;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace MadWizard.Insomnia.Minion
 {
@@ -48,6 +49,7 @@ namespace MadWizard.Insomnia.Minion
 
         public static IHostBuilder CreateHostBuilder(string[] args, MinionBootstrap boot) =>
             Host.CreateDefaultBuilder()
+                .UseContentRoot(Directory.GetCurrentDirectory())
 
                 .ConfigureLogging((ctx, loggingBuilder) =>
                 {
@@ -57,11 +59,9 @@ namespace MadWizard.Insomnia.Minion
                     {
                         var config = new LoggingConfiguration();
                         {
-                            FileInfo minionEXE = new FileInfo(Assembly.GetExecutingAssembly().Location);
-
                             var targetFile = new FileTarget("file")
                             {
-                                FileName = Path.Combine(minionEXE.DirectoryName, "minion.log"),
+                                FileName = Path.Combine(ctx.HostingEnvironment.ContentRootPath, "minion.log"),
                                 Layout = "${longdate} ${level} ${message}  ${exception}"
                             };
 
@@ -89,24 +89,24 @@ namespace MadWizard.Insomnia.Minion
                         ;
 
                     builder.RegisterType<ServiceManager>()
-                        .AttributedPropertiesAutowired()
-                        .AsImplementedInterfaces()
-                        .SingleInstance()
-                        ;
+                                    .AttributedPropertiesAutowired()
+                                    .AsImplementedInterfaces()
+                                    .SingleInstance()
+                                    ;
 
                     builder.RegisterType<MinionApplicationContext>()
-                        .AttributedPropertiesAutowired()
-                        .AsImplementedInterfaces()
-                        .SingleInstance()
-                        ;
+                                    .AttributedPropertiesAutowired()
+                                    .AsImplementedInterfaces()
+                                    .SingleInstance()
+                                    ;
                     #endregion
 
                     #region Custom-Services
                     builder.RegisterType<UserIdleTimeService>()
-                        .InstancePerMatchingLifetimeScope(typeof(IUserIdleTimeService))
-                        .AttributedPropertiesAutowired()
-                        .As<IUserIdleTimeService>()
-                        ;
+                                    .InstancePerMatchingLifetimeScope(typeof(IUserIdleTimeService))
+                                    .AttributedPropertiesAutowired()
+                                    .As<IUserIdleTimeService>()
+                                    ;
                     builder.RegisterType<WindowManagerService>()
                         .InstancePerMatchingLifetimeScope(typeof(IWindowManagerService))
                         .AttributedPropertiesAutowired()

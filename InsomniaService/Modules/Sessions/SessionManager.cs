@@ -50,7 +50,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                         || s.ConnectionState == Cassia.ConnectionState.Connected
                         || s.ConnectionState == Cassia.ConnectionState.Disconnected)
                         if (s.UserAccount != null)
-                            dict[s.SessionId] = new Session(s);
+                            dict[s.SessionId] = new Session(_tsServer, s.SessionId);
 
                 return dict;
             }
@@ -172,7 +172,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             Session session;
             if (desc.Reason == SessionChangeReason.SessionLogon)
-                session = new Session(_tsServer.GetSession(desc.SessionId));
+                session = new Session(_tsServer, desc.SessionId);
             else
                 session = _sessions[desc.SessionId];
 

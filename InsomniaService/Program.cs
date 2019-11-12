@@ -41,9 +41,9 @@ namespace MadWizard.Insomnia.Service
         public static IHostBuilder CreateHostBuilder(string[] args) =>
                 Host.CreateDefaultBuilder(args)
                     .UseInsomniaServiceLifetime()
-                    .ConfigureAppConfiguration(builder =>
+                    .ConfigureAppConfiguration((ctx, builder) =>
                     {
-                        builder.AddCustomXmlFile(@"C:\Users\Kevin\Source\Repos\Insomnia\config.xml");
+                        builder.AddCustomXmlFile(Path.Combine(ctx.HostingEnvironment.ContentRootPath, "config.xml"));
                     })
                     .ConfigureLogging((ctx, loggerBuilder) =>
                     {
@@ -52,7 +52,7 @@ namespace MadWizard.Insomnia.Service
                         if (config.Logging != null && config.Logging.LogLevel != LogLevel.None)
                         {
                             if (config.Logging.FileSystemLog != null)
-                                ConfigureNLog(loggerBuilder);
+                                ConfigureNLog(ctx.HostingEnvironment, loggerBuilder);
 
                             if (config.Logging.EventLog != null)
                                 loggerBuilder.AddEventLog();
@@ -97,15 +97,13 @@ namespace MadWizard.Insomnia.Service
                     })
                 ;
 
-        private static void ConfigureNLog(ILoggingBuilder loggingBuilder)
+        private static void ConfigureNLog(IHostEnvironment hostEnvironment, ILoggingBuilder loggingBuilder)
         {
             var config = new LoggingConfiguration();
             {
-                FileInfo insomniaEXE = new FileInfo(Assembly.GetExecutingAssembly().Location);
-
                 var targetFile = new FileTarget("file")
                 {
-                    FileName = Path.Combine(insomniaEXE.DirectoryName, "insomnia.log"),
+                    FileName = Path.Combine(hostEnvironment.ContentRootPath, "insomnia.log"),
                     Layout = "${longdate} ${level} ${message}  ${exception}"
                 };
 

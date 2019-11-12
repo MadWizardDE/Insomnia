@@ -30,7 +30,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 _monitor.SleepOver += OnSleepOver;
 
                 _logsDir = new DirectoryInfo("logs");
-                _logFile = new FileInfo(Path.Combine(_logsDir.FullName, "sleep.log"));
+                _logFile = new FileInfo(Path.Combine(Directory.GetCurrentDirectory(), "sleep.log"));
 
                 Directory.CreateDirectory(_logsDir.FullName);
             }

@@ -146,7 +146,7 @@ namespace MadWizard.Insomnia.Configuration
 
         public class NetworkCommanderConfig
         {
-            bool _resolveIPAddress;
+            bool _resolveIPAdress;
 
             public NetworkCommanderConfig()
             {
@@ -165,13 +165,13 @@ namespace MadWizard.Insomnia.Configuration
             #region Options
             public bool ResolveIPAddress
             {
-                get => _resolveIPAddress;
+                get => _resolveIPAdress;
 
                 set
                 {
-                    if (_resolveIPAddress != value)
+                    if (_resolveIPAdress != value)
                     {
-                        _resolveIPAddress = value;
+                        _resolveIPAdress = value;
 
                         ConfigChanged?.Invoke(this, EventArgs.Empty);
                     }

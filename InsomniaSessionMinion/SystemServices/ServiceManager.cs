@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -13,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace MadWizard.Insomnia.Minion
 {
-    class ServiceManager : IStartable, IServiceMessageHandler
+    class ServiceManager : IStartable, IServiceMessageHandler, IDisposable
     {
         ILifetimeScope _lifetimeScope;
 
@@ -112,6 +113,12 @@ namespace MadWizard.Insomnia.Minion
             _messenger.SendMessage(new ServiceStateMessage(serviceType, ServiceState.STOPPED));
         }
         #endregion
+
+        void IDisposable.Dispose()
+        {
+            foreach (var serviceType in _services.Keys.ToArray())
+                StopService(serviceType);
+        }
 
         private class Service
         {

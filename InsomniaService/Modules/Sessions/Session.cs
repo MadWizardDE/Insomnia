@@ -7,20 +7,26 @@ namespace MadWizard.Insomnia.Service.Sessions
 {
     public class Session : ISession
     {
-        ITerminalServicesSession _tsSession;
+        ITerminalServer _tsServer;
 
-        internal Session(ITerminalServicesSession tsSession)
+        int _sid;
+
+        internal Session(ITerminalServer tsServer, int sid)
         {
-            _tsSession = tsSession;
+            _tsServer = tsServer;
+
+            _sid = sid;
         }
 
-        public int Id => _tsSession.SessionId;
+        private ITerminalServicesSession TSSession => _tsServer.GetSession(_sid);
 
-        public string UserName => _tsSession.UserName;
+        public int Id => TSSession.SessionId;
 
-        public string ClientName => _tsSession.ClientName;
+        public string UserName => TSSession.UserName;
 
-        public ConnectionState ConnectionState => (ConnectionState)_tsSession.ConnectionState;
+        public string ClientName => TSSession.ClientName;
+
+        public ConnectionState ConnectionState => (ConnectionState)TSSession.ConnectionState;
 
         public string ClientUser
         {

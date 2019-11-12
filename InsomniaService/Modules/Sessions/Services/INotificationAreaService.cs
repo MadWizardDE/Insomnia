@@ -19,6 +19,8 @@ namespace MadWizard.Insomnia.Service.Sessions
         public Task ShowWakeOption(WakeOption option);
         public Task HideWakeOption(WakeOption option);
 
+        public Task Recreate();
+
         [Serializable]
         public struct WakeTarget
         {

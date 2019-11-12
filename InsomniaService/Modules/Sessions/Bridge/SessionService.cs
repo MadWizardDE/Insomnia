@@ -72,8 +72,18 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             if (!_sessionRefs.ContainsKey(session))
                 throw new ArgumentException($"Session {session.Id} unknown.");
+            if (!_sessionRefs.TryGetValue(session, out var serviceRef))
+                throw new SessionNotFoundException(session.Id);
 
-            return _sessionRefs[session].Service;
+            return serviceRef.Service;
+        }
+        T ISessionService<T>.SelectSession(int sessionID)
+        {
+            foreach (var session in _sessionRefs.Keys)
+                if (session.Id == sessionID)
+                    return _sessionRefs[session].Service;
+
+            throw new SessionNotFoundException(sessionID);
         }
         internal override void RemoveSession(ISession session)
         {
@@ -100,5 +110,10 @@ namespace MadWizard.Insomnia.Service.Sessions
             foreach (ISession session in _sessionRefs.Keys.ToArray())
                 RemoveSession(session);
         }
+    }
+
+    internal class SessionNotFoundException : Exception
+    {
+        internal SessionNotFoundException(int sessionID) : base($"Session with SessionID {sessionID} was not found.") { }
     }
 }

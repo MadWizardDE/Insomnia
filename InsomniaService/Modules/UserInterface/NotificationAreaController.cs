@@ -1,11 +1,13 @@
 ﻿using Autofac;
 using MadWizard.Insomnia.Configuration;
+using MadWizard.Insomnia.Service.Lifetime;
 using MadWizard.Insomnia.Service.Sessions;
 using MadWizard.Insomnia.Service.SleepWatch;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.ServiceProcess;
 using System.Text;
 using System.Threading;
 
@@ -15,7 +17,10 @@ using static MadWizard.Insomnia.Service.SleepWatch.NetworkCommander;
 
 namespace MadWizard.Insomnia.Service.UI
 {
-    class NotificationAreaController : IStartable, ISessionMessageHandler<ConfigureWakeOnLANMessage>, ISessionMessageHandler<ConfigureWakeOptionMessage>
+    class NotificationAreaController : IStartable, ISessionChangeHandler,
+        ISessionMessageHandler<ConfigureWakeOnLANMessage>,
+        ISessionMessageHandler<ConfigureWakeOptionMessage>
+
     {
         UserInferfaceConfig _configUI;
         UserInferfaceConfig.TrayMenuConfig _configTray;
@@ -25,23 +30,25 @@ namespace MadWizard.Insomnia.Service.UI
 
         ISessionService<INotificationAreaService> _sessionService;
 
-        public NotificationAreaController(InsomniaConfig config, Lazy<NetworkCommander> commander, Lazy<ISessionService<INotificationAreaService>> sessionService)
+        public NotificationAreaController(InsomniaConfig config, Lazy<ISessionService<INotificationAreaService>> sessionService, NetworkCommander commander = null)
         {
             _configUI = config.UserInterface;
             _configTray = _configUI?.TrayMenu;
 
             if (_configTray != null)
             {
-                _commander = commander.Value;
-                _commander.NetworkAvailabilityChanged += NetworkCommander_NetworkAvailabilityChanged;
-                _commander.NetworkTargetChanged += NetworkCommander_NetworkTargetChanged;
-
                 _sessionService = sessionService.Value;
             }
 
             _commanderConfig = config.SleepWatch?.NetworkCommander;
-            if (_commanderConfig != null)
+
+            if (_commanderConfig != null && commander != null)
+            {
+                _commander = commander;
+                _commander.NetworkAvailabilityChanged += NetworkCommander_NetworkAvailabilityChanged;
+                _commander.NetworkTargetChanged += NetworkCommander_NetworkTargetChanged;
                 _commanderConfig.ConfigChanged += NetworkCommander_ConfigChanged;
+            }
         }
 
         [Autowired]
@@ -52,6 +59,19 @@ namespace MadWizard.Insomnia.Service.UI
             UpdateNotifyArea();
         }
 
+        void ISessionChangeHandler.OnSessionChange(SessionChangeDescription desc)
+        {
+            switch (desc.Reason)
+            {
+                case SessionChangeReason.SessionUnlock:
+                case SessionChangeReason.RemoteConnect:
+                case SessionChangeReason.ConsoleConnect:
+                    _sessionService.SelectSession(desc.SessionId).Recreate();
+                    break;
+
+                default: break;
+            }
+        }
         void ISessionMessageHandler<ConfigureWakeOnLANMessage>.Handle(ISession session, ConfigureWakeOnLANMessage message)
         {
             var target = _commander.GetNetworkByName(message.Target.NetworkName).GetTargetByName(message.Target.Name);
@@ -65,7 +85,12 @@ namespace MadWizard.Insomnia.Service.UI
         }
         void ISessionMessageHandler<ConfigureWakeOptionMessage>.Handle(ISession session, ConfigureWakeOptionMessage message)
         {
-            throw new NotImplementedException();
+            switch (message.Option.Key)
+            {
+                case WakeOption.RESOLVE_IP:
+                    _commanderConfig.ResolveIPAddress = (bool)message.Option.Value;
+                    break;
+            }
         }
 
         private void NetworkCommander_NetworkAvailabilityChanged(object sender, NetworkEventArgs args)

@@ -206,7 +206,7 @@ namespace MadWizard.Insomnia.Tools
         /// </summary>
         /// <param name="applicationName">The name of the application to launch</param>
         /// <returns>pid</returns>
-        public static int CreateProcessInSession(string cmd, uint dwSessionId = 0)
+        public static int CreateProcessInSession(string cmd, string cd = null, uint dwSessionId = 0)
         {
             PROCESS_INFORMATION procInfo;
 
@@ -282,7 +282,7 @@ namespace MadWizard.Insomnia.Tools
                                             false,                  // handles are not inheritable
                                             dwCreationFlags,        // creation flags
                                             IntPtr.Zero,            // pointer to new environment block 
-                                            null,                   // name of current directory 
+                                            cd,                   // name of current directory 
                                             ref si,                 // pointer to STARTUPINFO structure
                                             out procInfo            // receives information about new process
                                             );
