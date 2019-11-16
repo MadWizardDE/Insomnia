@@ -11,4 +11,10 @@
     <PackageReference Include="Castle.Core" Version="4.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Cassia">
+      <HintPath>..\InsomniaService\bin\Release\netcoreapp3.0\Cassia.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

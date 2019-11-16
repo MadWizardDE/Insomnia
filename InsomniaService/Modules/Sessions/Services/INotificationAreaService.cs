@@ -13,6 +13,9 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         public Task ShowNotificationAsync(NotifyMessageType type, string title, string text, int timeout = DEFAULT_TIMEOUT);
 
+        public Task ShowAvailableConsoleUser(UserInfo user);
+        public Task HideAvailableConsoleUser(UserInfo user);
+
         public Task ShowWakeTarget(WakeTarget target);
         public Task HideWakeTarget(WakeTarget target);
 
@@ -20,6 +23,21 @@ namespace MadWizard.Insomnia.Service.Sessions
         public Task HideWakeOption(WakeOption option);
 
         public Task Recreate();
+
+        [Serializable]
+        public struct UserInfo
+        {
+            public UserInfo(int sid, string name, bool console)
+            {
+                SID = sid;
+                Name = name;
+                IsConsoleConnected = console;
+            }
+
+            public int SID { get; set; }
+            public string Name { get; set; }
+            public bool IsConsoleConnected { get; set; }
+        }
 
         [Serializable]
         public struct WakeTarget

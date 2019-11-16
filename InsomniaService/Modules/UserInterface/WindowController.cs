@@ -9,7 +9,7 @@ using System.ServiceProcess;
 using System.Text;
 using System.Timers;
 
-using static MadWizard.Insomnia.Configuration.UserInferfaceConfig;
+using static MadWizard.Insomnia.Configuration.UserInterfaceConfig;
 
 namespace MadWizard.Insomnia.Service.UI
 {

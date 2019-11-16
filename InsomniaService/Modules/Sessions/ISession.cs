@@ -16,7 +16,10 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         public string ClientUser { get; }
 
+        public bool IsConsoleConnected { get; }
         public bool IsRemoteConnected { get; }
+
+        public bool? IsLocked { get; }
 
         public bool? IsIdle { get; }
         public long? IdleTime { get; }

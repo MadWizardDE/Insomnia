@@ -21,7 +21,7 @@ namespace MadWizard.Insomnia.Configuration
 
         public DebugParameterConfig DebugParameters { get; set; }
 
-        public UserInferfaceConfig UserInterface { get; set; }
+        public UserInterfaceConfig UserInterface { get; set; }
         public SleepWatchConfig SleepWatch { get; set; }
         public RemoteControlConfig RemoteControl { get; set; }
 
@@ -36,13 +36,21 @@ namespace MadWizard.Insomnia.Configuration
 
         public TestMessageConfig TestMessage { get; set; }
 
+        public TestConsoleConnectConfig TestConsoleConnect { get; set; }
+
         public class TestMessageConfig
         {
             public string Text { get; set; }
         }
+
+        public class TestConsoleConnectConfig
+        {
+            public string User { get; set; }
+            public int? SID { get; set; }
+        }
     }
 
-    public class UserInferfaceConfig
+    public class UserInterfaceConfig
     {
         public TrayMenuConfig TrayMenu { get; set; }
         public MoonriseCommanderConfig MoonriseCommander { get; set; }
@@ -50,7 +58,7 @@ namespace MadWizard.Insomnia.Configuration
 
         public class TrayMenuConfig
         {
-
+            public bool ShowConsoleSwitch { get; set; }
         }
 
         public class MoonriseCommanderConfig
@@ -259,12 +267,33 @@ namespace MadWizard.Insomnia.Configuration
         public enum DiscoveryType
         {
             None = 0,
+
             Broadcast
         }
 
         public enum SecurityType
         {
-            None = 0
+            None = 0,
+
+            User
+        }
+
+        public class RemoteUserConfig
+        {
+            public string Name { get; set; }
+
+            public AuthType Auth { get; set; } = AuthType.None;
+
+            public string Secret { get; set; }
+            public string Path { get; set; }
+
+            public enum AuthType
+            {
+                None = 0,
+
+                Password,
+                Certificate
+            }
         }
     }
 

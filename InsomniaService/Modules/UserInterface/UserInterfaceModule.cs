@@ -9,9 +9,9 @@ namespace MadWizard.Insomnia.Service.UI
 {
     class UserInterfaceModule : Module
     {
-        UserInferfaceConfig _config;
+        UserInterfaceConfig _config;
 
-        public UserInterfaceModule(UserInferfaceConfig config)
+        public UserInterfaceModule(UserInterfaceConfig config)
         {
             _config = config;
         }

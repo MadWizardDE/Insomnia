@@ -25,6 +25,9 @@ namespace MadWizard.Insomnia.Tools
                 throw new Win32Exception(Marshal.GetLastWin32Error());
         }
 
+        [DllImport("user32.dll")]
+        public static extern bool SetProcessDPIAware();
+
         #endregion
 
         #region Power-Requests
@@ -304,9 +307,6 @@ namespace MadWizard.Insomnia.Tools
         #endregion
 
         #region IdleTimer
-        [DllImport("User32.dll")]
-        public static extern bool LockWorkStation();
-
         [DllImport("User32.dll")]
         private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
 

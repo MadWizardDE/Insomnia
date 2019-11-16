@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Autofac.Extensions.DependencyInjection;
 using MadWizard.Insomnia.Minion.Services;
-using MadWizard.Insomnia.Minion.Tools;
 using MadWizard.Insomnia.Service;
 using MadWizard.Insomnia.Service.Sessions;
 using Microsoft.Extensions.Hosting;
@@ -23,6 +22,7 @@ using NLog.Targets;
 using Message = MadWizard.Insomnia.Service.Sessions.Message;
 using System.Runtime.InteropServices;
 using System.Threading;
+using MadWizard.Insomnia.Tools;
 
 namespace MadWizard.Insomnia.Minion
 {
@@ -62,7 +62,7 @@ namespace MadWizard.Insomnia.Minion
                             var targetFile = new FileTarget("file")
                             {
                                 FileName = Path.Combine(ctx.HostingEnvironment.ContentRootPath, "minion.log"),
-                                Layout = "${longdate} ${level} ${message}  ${exception}"
+                                Layout = "${longdate} ${level} SID=" + Process.GetCurrentProcess().SessionId + " ${message}  ${exception}"
                             };
 
                             config.AddTarget(targetFile);
@@ -103,10 +103,10 @@ namespace MadWizard.Insomnia.Minion
 
                     #region Custom-Services
                     builder.RegisterType<UserIdleTimeService>()
-                                    .InstancePerMatchingLifetimeScope(typeof(IUserIdleTimeService))
-                                    .AttributedPropertiesAutowired()
-                                    .As<IUserIdleTimeService>()
-                                    ;
+                        .InstancePerMatchingLifetimeScope(typeof(IUserIdleTimeService))
+                        .AttributedPropertiesAutowired()
+                        .As<IUserIdleTimeService>()
+                        ;
                     builder.RegisterType<WindowManagerService>()
                         .InstancePerMatchingLifetimeScope(typeof(IWindowManagerService))
                         .AttributedPropertiesAutowired()
@@ -121,6 +121,11 @@ namespace MadWizard.Insomnia.Minion
                         .InstancePerMatchingLifetimeScope(typeof(INotificationAreaService))
                         .AttributedPropertiesAutowired()
                         .As<INotificationAreaService>()
+                        ;
+                    builder.RegisterType<TestWTSService>()
+                        .InstancePerMatchingLifetimeScope(typeof(ITestWTSService))
+                        .AttributedPropertiesAutowired()
+                        .As<ITestWTSService>()
                         ;
                     #endregion
                 })

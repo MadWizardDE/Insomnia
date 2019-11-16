@@ -5,6 +5,7 @@ using MadWizard.Insomnia.Service.Lifetime;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.ServiceProcess;
@@ -14,9 +15,6 @@ namespace MadWizard.Insomnia.Service.Sessions
 {
     class SessionManager : ISessionManager, IPowerEventHandler, ISessionChangeHandler, ISessionMessageHandler<UserIdleTimeMessage>
     {
-        [DllImport("Kernel32.dll")]
-        static extern UInt32 WTSGetActiveConsoleSessionId();
-
         InsomniaConfig _config;
 
         Func<Owned<ISessionService<IUserIdleTimeService>>> _ssUserIdleFactory;
@@ -50,7 +48,14 @@ namespace MadWizard.Insomnia.Service.Sessions
                         || s.ConnectionState == Cassia.ConnectionState.Connected
                         || s.ConnectionState == Cassia.ConnectionState.Disconnected)
                         if (s.UserAccount != null)
-                            dict[s.SessionId] = new Session(_tsServer, s.SessionId);
+                        {
+                            var session = new Session(_tsServer, s.SessionId)
+                            {
+                                IsConsoleConnected = s.SessionId == WTSGetActiveConsoleSessionId()
+                            };
+
+                            dict[s.SessionId] = session;
+                        }
 
                 return dict;
             }
@@ -59,12 +64,14 @@ namespace MadWizard.Insomnia.Service.Sessions
         [Autowired]
         ILogger<SessionManager> Logger { get; set; }
 
-        public bool ConsoleLocked { get; private set; }
+        public bool ConsoleLocked => ConsoleSession.IsLocked.HasValue ? ConsoleSession.IsLocked.Value : false;
         public bool ConsoleActive => ConsoleSession.ConnectionState == ConnectionState.Active;
 
         public ISession this[int sid] => _sessions[sid];
         public IEnumerable<ISession> Sessions => _sessions.Values;
-        public ISession ConsoleSession => _sessions[(int)WTSGetActiveConsoleSessionId()];
+        public ISession ConsoleSession => _sessions.TryGetValue((int)WTSGetActiveConsoleSessionId(), out var session) ? session : null;
+
+        public event EventHandler<UserEventArgs> ConsoleSessionChanged;
 
         public event EventHandler<UserLoginEventArgs> UserLogin;
         public event EventHandler<UserEventArgs> UserIdle
@@ -100,7 +107,6 @@ namespace MadWizard.Insomnia.Service.Sessions
             }
         }
         public event EventHandler<UserEventArgs> UserLogout;
-
         private void AcquireIdleTimeService()
         {
             if (_ssUserIdleService == null)
@@ -192,33 +198,42 @@ namespace MadWizard.Insomnia.Service.Sessions
                 Logger.LogDebug(InsomniaEventId.SESSION_CHANGE_INFO, sb.ToString());
             }
 
-            if (session.Id == WTSGetActiveConsoleSessionId())
-                if (desc.Reason == SessionChangeReason.SessionLock)
-                    ConsoleLocked = true;
-                else if (desc.Reason == SessionChangeReason.SessionUnlock)
-                    ConsoleLocked = false;
-
-            if (desc.Reason == SessionChangeReason.SessionLogon
+            if (session.IsUserSession)
+            {
+                if (desc.Reason == SessionChangeReason.SessionLogon
                 || desc.Reason == SessionChangeReason.SessionUnlock && !session.IsRemoteConnected
                 || desc.Reason == SessionChangeReason.ConsoleConnect
                 || desc.Reason == SessionChangeReason.RemoteConnect)
-                if (session.ConnectionState == ConnectionState.Active)
+                    if (session.ConnectionState == ConnectionState.Active)
+                    {
+                        Logger.LogInformation(InsomniaEventId.USER_LOGIN, $"User login: {clientUser}");
+
+                        bool createSession = !_sessions.ContainsKey(desc.SessionId);
+
+                        if (createSession)
+                            _sessions.Add(session.Id, session);
+
+                        UserLogin?.Invoke(this, new UserLoginEventArgs(session, createSession));
+                    }
+
+                if (desc.Reason == SessionChangeReason.ConsoleConnect || desc.Reason == SessionChangeReason.ConsoleDisconnect)
                 {
-                    Logger.LogInformation(InsomniaEventId.USER_LOGIN, $"User login: {clientUser}");
+                    session.IsConsoleConnected = desc.Reason == SessionChangeReason.ConsoleConnect;
 
-                    bool createSession = !_sessions.ContainsKey(desc.SessionId);
-
-                    if (createSession)
-                        _sessions.Add(session.Id, session);
-
-                    UserLogin?.Invoke(this, new UserLoginEventArgs(session, createSession));
+                    ConsoleSessionChanged?.Invoke(this, new UserEventArgs(session));
                 }
 
-            if (desc.Reason == SessionChangeReason.SessionLogoff)
-            {
-                UserLogout?.Invoke(this, new UserEventArgs(session));
+                if (desc.Reason == SessionChangeReason.SessionLock)
+                    session.IsLocked = true;
+                if (desc.Reason == SessionChangeReason.SessionUnlock)
+                    session.IsLocked = false;
 
-                _sessions.Remove(session.Id);
+                if (desc.Reason == SessionChangeReason.SessionLogoff)
+                {
+                    _sessions.Remove(session.Id);
+
+                    UserLogout?.Invoke(this, new UserEventArgs(session));
+                }
             }
         }
         void ISessionMessageHandler<UserIdleTimeMessage>.Handle(ISession s, UserIdleTimeMessage message)
@@ -245,5 +260,34 @@ namespace MadWizard.Insomnia.Service.Sessions
             }
         }
 
+        ISession ISessionManager.FindSessionByID(int sid)
+        {
+            return this[sid];
+        }
+        ISession ISessionManager.FindSessionByUserName(string user)
+        {
+            return _sessions.Values.Where(s => s.UserName.Equals(user, StringComparison.InvariantCultureIgnoreCase)).SingleOrDefault();
+        }
+
+        void ISessionManager.ConnectSession(ISession source, ISession target)
+        {
+            UInt32 sourceSID = (UInt32)source.Id;
+            UInt32 targetSID = (target != null ? (UInt32)target.Id : WTSGetActiveConsoleSessionId());
+
+            if (!WTSConnectSession(sourceSID, targetSID, "", true))
+            {
+                int lastError = Marshal.GetLastWin32Error();
+
+                if (lastError > 0)
+                    throw new Win32Exception(lastError);
+            }
+        }
+
+        [DllImport("Kernel32.dll")]
+        static extern UInt32 WTSGetActiveConsoleSessionId();
+        [DllImport("Wtsapi32.dll")]
+        static extern bool WTSConnectSession(UInt32 LogonId, UInt32 TargetLogonId, String pPassword, bool bWait);
+        [DllImport("Wtsapi32.dll")]
+        static extern bool WTSDisconnectSession(IntPtr hServer, uint SessionId, bool bWait);
     }
 }

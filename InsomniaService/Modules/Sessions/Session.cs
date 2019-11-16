@@ -40,7 +40,12 @@ namespace MadWizard.Insomnia.Service.Sessions
             }
         }
 
+        internal bool IsUserSession => TSSession.UserAccount != null;
+
+        public bool IsConsoleConnected { get; internal set; }
         public bool IsRemoteConnected => ClientName.Length > 0;
+
+        public bool? IsLocked { get; internal set; }
 
         public bool? IsIdle { get; internal set; }
         public long? IdleTime { get; internal set; }

@@ -11,6 +11,8 @@ using System.Windows.Forms;
 using wyDay.Controls;
 
 using static MadWizard.Insomnia.Service.Sessions.INotificationAreaService;
+using Microsoft.Extensions.Logging;
+using MadWizard.Insomnia.Service;
 
 namespace MadWizard.Insomnia.Minion.Services
 {
@@ -23,11 +25,13 @@ namespace MadWizard.Insomnia.Minion.Services
         VistaMenu _vistaMenu;
 
         bool _moonriseCommander;
+        IDictionary<int, UserInfo> _consoleUsers;
         IDictionary<string, IDictionary<string, WakeTarget>> _wakeTargets;
         IDictionary<string, WakeOption> _wakeOptions;
 
         public NotificationAreaService(IUserInterface ui, IUserMessenger messenger)
         {
+            _consoleUsers = new ConcurrentDictionary<int, UserInfo>();
             _wakeTargets = new ConcurrentDictionary<string, IDictionary<string, WakeTarget>>();
             _wakeOptions = new ConcurrentDictionary<string, WakeOption>();
 
@@ -37,6 +41,9 @@ namespace MadWizard.Insomnia.Minion.Services
 
             _userMessenger = messenger;
         }
+
+        [Autowired]
+        ILogger<NotificationAreaService> Logger { get; set; }
 
         Icon TrayIcon
         {
@@ -67,7 +74,7 @@ namespace MadWizard.Insomnia.Minion.Services
             _notifyIcon.ContextMenu?.Dispose();
             _notifyIcon.Icon = TrayIcon;
 
-            if (_wakeTargets.Count > 0 || _moonriseCommander)
+            if (_consoleUsers.Count > 0 || _wakeTargets.Count > 0 || _moonriseCommander)
             {
                 _vistaMenu = new VistaMenu();
 
@@ -84,6 +91,33 @@ namespace MadWizard.Insomnia.Minion.Services
                     _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
 
                     _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
+                }
+
+                if (_consoleUsers.Count > 0)
+                {
+                    if (_notifyIcon.ContextMenu.MenuItems.Count > 0)
+                        if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Name != "-")
+                            _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator hinzufügen (wenn nicht schon vorhanden)
+
+                    MenuItem consoleSessions = new MenuItem("Konsolen-Sitzung");
+
+                    _vistaMenu.SetImage(consoleSessions, new Bitmap(Resources.User16, new Size(16, 16)));
+
+                    foreach (UserInfo user in _consoleUsers.Values)
+                    {
+                        void ContextMenu_ConsoleUserClicked(object sender, EventArgs args)
+                        {
+                            _userMessenger.SendMessage(new ConnectToConsoleMessage(user));
+                        }
+
+                        MenuItem userItem = new MenuItem(user.Name);
+                        userItem.Checked = user.IsConsoleConnected;
+                        if (!user.IsConsoleConnected)
+                            userItem.Click += ContextMenu_ConsoleUserClicked;
+                        consoleSessions.MenuItems.Add(userItem);
+                    }
+
+                    _notifyIcon.ContextMenu.MenuItems.Add(consoleSessions);
                 }
 
                 if (_wakeTargets.Count > 0)
@@ -109,7 +143,7 @@ namespace MadWizard.Insomnia.Minion.Services
                                 }
                             }
 
-                            static string Label(WakeOption option)
+                            static string ToLabel(WakeOption option)
                             {
                                 switch (option.Key)
                                 {
@@ -120,7 +154,7 @@ namespace MadWizard.Insomnia.Minion.Services
                                 }
                             }
 
-                            MenuItem optionItem = new MenuItem(Label(option));
+                            MenuItem optionItem = new MenuItem(ToLabel(option));
                             if (option.Value is bool check)
                             {
                                 optionItem.Checked = check;
@@ -246,10 +280,25 @@ namespace MadWizard.Insomnia.Minion.Services
 
         public async Task ShowNotificationAsync(NotifyMessageType type, string title, string text, int timeout)
         {
+            Logger.LogInformation($"Notification[{type}] = {title} | {text}");
+
             await _userInterface.SendActionAsync(() =>
             {
                 _notifyIcon.ShowBalloonTip(timeout, title, text, (ToolTipIcon)type);
             });
+        }
+
+        public async Task ShowAvailableConsoleUser(UserInfo user)
+        {
+            _consoleUsers[user.SID] = user;
+
+            await _userInterface.SendActionAsync(UpdateContextMenu);
+        }
+        public async Task HideAvailableConsoleUser(UserInfo user)
+        {
+            _consoleUsers.Remove(user.SID);
+
+            await _userInterface.SendActionAsync(UpdateContextMenu);
         }
 
         public async Task ShowWakeTarget(WakeTarget target)
@@ -286,13 +335,12 @@ namespace MadWizard.Insomnia.Minion.Services
 
             await _userInterface.SendActionAsync(UpdateContextMenu);
         }
-        public Task Recreate()
-        {
-            _userInterface.SendAction(DestroyTrayIcon);
-            _userInterface.SendAction(CreateTrayIcon);
-            _userInterface.SendAction(UpdateContextMenu);
 
-            return Task.CompletedTask;
+        public async Task Recreate()
+        {
+            await _userInterface.SendActionAsync(DestroyTrayIcon);
+            await _userInterface.SendActionAsync(CreateTrayIcon);
+            await _userInterface.SendActionAsync(UpdateContextMenu);
         }
         #endregion
 
@@ -300,6 +348,5 @@ namespace MadWizard.Insomnia.Minion.Services
         {
             _userInterface.SendAction(DestroyTrayIcon);
         }
-
     }
 }

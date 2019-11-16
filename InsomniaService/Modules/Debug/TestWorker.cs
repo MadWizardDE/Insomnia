@@ -15,15 +15,26 @@ namespace MadWizard.Insomnia.Service.Debug
     {
         DebugParameterConfig _config;
 
+        ISessionManager _sessionManager;
         Lazy<Owned<ISessionService<ITextMessageService>>> _lazyTextMessageService;
+        Lazy<Owned<ISessionService<INotificationAreaService>>> _lazyTrayService;
+        Lazy<Owned<ISessionService<ITestWTSService>>> _lazyWTSService;
 
-        public TestWorker(ILogger<TestWorker> logger, InsomniaConfig config, Lazy<Owned<ISessionService<ITextMessageService>>> lazyTextMessageService)
+        public TestWorker(ILogger<TestWorker> logger, InsomniaConfig config,
+            ISessionManager sessionManager,
+            Lazy<Owned<ISessionService<INotificationAreaService>>> lazyTrayService,
+            Lazy<Owned<ISessionService<ITextMessageService>>> lazyTextMessageService,
+            Lazy<Owned<ISessionService<ITestWTSService>>> lazyWTSService
+            )
         {
             Logger = logger;
 
             _config = config.DebugParameters;
 
+            _sessionManager = sessionManager;
+            _lazyTrayService = lazyTrayService;
             _lazyTextMessageService = lazyTextMessageService;
+            _lazyWTSService = lazyWTSService;
         }
 
         [Autowired]
@@ -70,6 +81,56 @@ namespace MadWizard.Insomnia.Service.Debug
                     owned.Dispose();
 
                     Logger.LogInformation("TextMessage-Service disposed");
+                }
+
+                if (_config.TestConsoleConnect != null)
+                {
+                    const bool SCS = false;
+
+                    if (SCS)
+                    {
+                        Logger.LogInformation("Retriving WTS-Service...");
+
+                        var owned = _lazyWTSService.Value;
+
+                        Logger.LogInformation("WTS-Service retrieved");
+
+                        Logger.LogInformation("ConnectToConsole...");
+
+                        owned.Value.SelectSession(_config.TestConsoleConnect.SID.Value).ConnectToConsole();
+
+                        Logger.LogInformation("Disposing WTS-Service...");
+
+                        await Task.Delay(5000);
+
+
+                        Logger.LogInformation("Done.");
+
+                        owned.Dispose();
+
+                        Logger.LogInformation("WTS-Service disposed");
+                    }
+                    else
+                    {
+                        Logger.LogInformation($"Determining Source-/Target-Session...");
+
+                        ISession source, target = _sessionManager.ConsoleSession;
+                        if (_config.TestConsoleConnect.SID != null)
+                            source = _sessionManager.FindSessionByID(_config.TestConsoleConnect.SID.Value);
+                        else
+                            source = _sessionManager.FindSessionByUserName(_config.TestConsoleConnect.User);
+
+                        Logger.LogInformation($"Connecting SID={source.Id} to SID={target.Id}");
+
+                        _sessionManager.ConnectSession(source, target);
+
+                        await Task.Delay(5000);
+
+                        using var tray = _lazyTrayService.Value;
+
+                        await tray.Value.SelectSession(source.Id).ShowNotificationAsync(INotificationAreaService.NotifyMessageType.Info,
+                            "Insomnia", $"Die Windows-Sitzung wurde erfolgreich von '{target.UserName}' zu '{source.UserName}' gewechselt.", timeout: 20000);
+                    }
                 }
             }
 

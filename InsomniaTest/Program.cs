@@ -1,11 +1,14 @@
-﻿using Castle.DynamicProxy;
+﻿using Cassia;
+using Castle.DynamicProxy;
 using MadWizard.Insomnia;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Security;
 using System.Threading.Tasks;
 
 namespace InsomniaTest
@@ -14,6 +17,10 @@ namespace InsomniaTest
     {
         static async Task Main(string[] args)
         {
+            TestCassia();
+
+            TestProcess();
+
             new TestNetwork().Test();
             //new TestGeneric().Test();
 
@@ -36,6 +43,45 @@ namespace InsomniaTest
                 Console.WriteLine("test contained");
 
             //Console.ReadKey();
+        }
+
+        static void TestCassia()
+        {
+            var tsManager = new TerminalServicesManager();
+            var tsServer = tsManager.GetLocalServer();
+
+            var sessions = tsServer.GetSessions();
+
+            Console.ReadKey();
+        }
+
+        static void TestProcess()
+        {
+            SecureString password = new SecureString();
+            password.AppendChar('c');
+            password.AppendChar('h');
+            password.AppendChar('a');
+            password.AppendChar('n');
+            password.AppendChar('g');
+            password.AppendChar('e');
+            password.AppendChar('i');
+            password.AppendChar('t');
+
+            using (Process compiler = new Process())
+            {
+                compiler.StartInfo.UserName = "Johannes";
+                compiler.StartInfo.Password = password;
+                compiler.StartInfo.FileName = @"notepad";
+                compiler.StartInfo.UseShellExecute = false;
+                compiler.StartInfo.RedirectStandardOutput = true;
+                compiler.StartInfo.WorkingDirectory = @"C:\";
+                compiler.Start();
+
+                Console.WriteLine(compiler.StandardOutput.ReadToEnd());
+
+                compiler.WaitForExit();
+            }
+
         }
 
         static async Task TestProxy()
