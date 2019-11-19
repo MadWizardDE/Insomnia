@@ -60,13 +60,13 @@ namespace MadWizard.Insomnia.Service.Sessions
         ILogger<SessionBridge> Logger { get; set; }
 
         #region SessionManager-Callbacks
-        private void SessionManager_UserLogin(object sender, UserLoginEventArgs args)
+        private void SessionManager_UserLogin(object sender, SessionLoginEventArgs args)
         {
             if (args.IsSessionCreated)
                 foreach (SessionService service in _services.Values)
                     service.AddSession(args.Session);
         }
-        private void SessionManager_UserLogout(object sender, UserEventArgs args)
+        private void SessionManager_UserLogout(object sender, SessionEventArgs args)
         {
             foreach (SessionService service in _services.Values)
                 service.RemoveSession(args.Session);
@@ -167,7 +167,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                         {
                             var config = new SessionMinionConfig
                             {
-                                Interval = _config.Interval / 10
+                                Interval = _config.Interval / 10,
                             };
 
                             SessionMinion minion = new SessionMinion(session, process, pipe, config);

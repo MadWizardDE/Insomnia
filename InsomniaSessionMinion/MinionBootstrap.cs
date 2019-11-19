@@ -9,6 +9,7 @@ using System.Diagnostics;
 
 using Timer = System.Timers.Timer;
 using Microsoft.Extensions.Logging;
+using System.Security.Principal;
 
 namespace MadWizard.Insomnia.Minion
 {
@@ -58,6 +59,7 @@ namespace MadWizard.Insomnia.Minion
                     if (message is StartupMessage startupMessage)
                     {
                         Config = startupMessage.Config;
+                        //Config.IsAdministrator = CheckAdministratorRole();
 
                         waiter.Set();
 
@@ -126,6 +128,13 @@ namespace MadWizard.Insomnia.Minion
                     PipeClient.ServerMessage -= PipeClient_ServerMessage;
                 }
             }
+        }
+
+        private bool CheckAdministratorRole()
+        {
+            WindowsPrincipal prinz = new WindowsPrincipal(WindowsIdentity.GetCurrent());
+
+            return prinz.IsInRole(WindowsBuiltInRole.Administrator);
         }
 
         void IDisposable.Dispose()

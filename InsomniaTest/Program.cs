@@ -4,20 +4,40 @@ using MadWizard.Insomnia;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.DirectoryServices.AccountManagement;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security;
+using System.Security.Claims;
+using System.Security.Principal;
 using System.Threading.Tasks;
 
 namespace InsomniaTest
 {
     class Program
     {
+        struct Number
+        {
+            public int A;
+        }
+
         static async Task Main(string[] args)
         {
-            TestCassia();
+            Number? number = null;
+
+            if (number?.A > 4)
+                Console.WriteLine("Hallo");
+
+            Console.ReadKey();
+
+            //TestCassia();
+            TestPrincipal(@"Kevin");
+            TestPrincipal(@"KEVINS-PC\Johannes");
+            Console.ReadKey();
+
 
             TestProcess();
 
@@ -43,6 +63,33 @@ namespace InsomniaTest
                 Console.WriteLine("test contained");
 
             //Console.ReadKey();
+        }
+
+        static void TestPrincipal(string user)
+        {
+            var currentIdentity = WindowsIdentity.GetCurrent();
+            var userIdetitiy = new WindowsIdentity(currentIdentity.Token);
+
+            //WindowsPrincipal prinz = new WindowsIdentity(user));
+            WindowsPrincipal prinz = new WindowsPrincipal(userIdetitiy);
+
+            if (prinz.IsInRole(WindowsBuiltInRole.Administrator))
+                Console.WriteLine($"{prinz.Identity.Name} is Administrator");
+            else
+                Console.WriteLine($"{prinz.Identity.Name} is NOT Administrator");
+        }
+
+        static WindowsIdentity GetWindowsIdentity(string userName)
+        {
+            PrincipalContext ctx = new PrincipalContext(ContextType.Machine);
+
+            return null;
+        }
+
+
+        private static bool IsAdmin
+        {
+            get => new WindowsPrincipal(WindowsIdentity.GetCurrent()).UserClaims.Where(c => c.Value.Contains("S-1-5-32-544")).Count() > 0;
         }
 
         static void TestCassia()

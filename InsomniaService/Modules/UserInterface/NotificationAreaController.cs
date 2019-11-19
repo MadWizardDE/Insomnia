@@ -15,13 +15,15 @@ using System.Threading.Tasks;
 using static MadWizard.Insomnia.Configuration.SleepWatchConfig;
 using static MadWizard.Insomnia.Service.Sessions.INotificationAreaService;
 using static MadWizard.Insomnia.Service.SleepWatch.NetworkCommander;
+using Timer = System.Timers.Timer;
 
 namespace MadWizard.Insomnia.Service.UI
 {
-    class NotificationAreaController : IStartable, ISessionChangeHandler,
+    class NotificationAreaController : IStartable,
         ISessionMessageHandler<ConfigureWakeOnLANMessage>,
         ISessionMessageHandler<ConfigureWakeOptionMessage>,
         ISessionMessageHandler<ConnectToConsoleMessage>,
+        ISessionMessageHandler<ConnectToRemoteMessage>,
         IDisposable
 
     {
@@ -43,16 +45,13 @@ namespace MadWizard.Insomnia.Service.UI
 
             _sessionManager = sessionManager;
 
-            if (_configTray != null)
-            {
-                _sessionService = sessionService.Value;
+            _sessionService = sessionService.Value;
 
-                if (_configTray.ShowConsoleSwitch)
-                {
-                    _sessionManager.UserLogin += SessionManager_SessionChanged;
-                    _sessionManager.ConsoleSessionChanged += SessionManager_SessionChanged;
-                    _sessionManager.UserLogout += SessionManager_SessionChanged;
-                }
+            if (_configTray.SessionSwitch != null)
+            {
+                _sessionManager.UserLogin += SessionManager_SessionChanged;
+                _sessionManager.ConsoleSessionChanged += SessionManager_SessionChanged;
+                _sessionManager.UserLogout += SessionManager_SessionChanged;
             }
 
             _commanderConfig = config.SleepWatch?.NetworkCommander;
@@ -73,19 +72,6 @@ namespace MadWizard.Insomnia.Service.UI
             UpdateNotifyArea();
         }
 
-        void ISessionChangeHandler.OnSessionChange(SessionChangeDescription desc)
-        {
-            switch (desc.Reason)
-            {
-                case SessionChangeReason.SessionUnlock:
-                case SessionChangeReason.RemoteConnect:
-                case SessionChangeReason.ConsoleConnect:
-                    //_sessionService.SelectSession(desc.SessionId).Recreate();
-                    break;
-
-                default: break;
-            }
-        }
         void ISessionMessageHandler<ConfigureWakeOnLANMessage>.Handle(ISession session, ConfigureWakeOnLANMessage message)
         {
             var target = _commander.GetNetworkByName(message.Target.NetworkName).GetTargetByName(message.Target.Name);
@@ -106,38 +92,92 @@ namespace MadWizard.Insomnia.Service.UI
                     break;
             }
         }
+
         async void ISessionMessageHandler<ConnectToConsoleMessage>.Handle(ISession session, ConnectToConsoleMessage message)
         {
-            // TODO asynchrone verarbeitung?
-
             ISession source, target = _sessionManager.ConsoleSession;
             if (message.User.SID > 0)
                 source = _sessionManager.FindSessionByID(message.User.SID);
             else
                 source = _sessionManager.FindSessionByUserName(message.User.Name);
 
+            await ConnectToSession(session, source, target);
+        }
+        async void ISessionMessageHandler<ConnectToRemoteMessage>.Handle(ISession session, ConnectToRemoteMessage message)
+        {
+            if (session.IsRemoteConnected)
+            {
+                ISession source, target = session;
+                if (message.User.SID > 0)
+                    source = _sessionManager.FindSessionByID(message.User.SID);
+                else
+                    source = _sessionManager.FindSessionByUserName(message.User.Name);
+
+                await ConnectToSession(session, source, target);
+            }
+        }
+        async Task ConnectToSession(ISession trigger, ISession source, ISession target)
+        {
             if (source != target)
             {
-                Logger.LogInformation($"Connecting SID={source.Id} to SID={(target != null ? target.Id.ToString() : "Console")}...");
+                Logger.LogInformation($"Connecting SID={source.Id} -> SID={(target != null ? target.Id.ToString() : "?")}...");
+
+                bool targetConsole = target?.IsConsoleConnected ?? true;
 
                 try
                 {
-                    _sessionManager.ConnectSession(source, target);
+                    const int NOTIFY_DELAY = 5000;
 
-                    await Task.Delay(5000);
+                    TimeSpan? keepPrivileges = null;
+                    if (_configTray.SessionSwitch.KeepPrivileges != null && target != null && trigger != source)
+                        keepPrivileges = TimeSpan.FromSeconds(_configTray.SessionSwitch.KeepPrivileges.Value);
+
+                    _sessionManager.ConnectSession(source, target, keepPrivileges);
+
+                    Logger.LogInformation($"ConnectToSession() successful");
+
+                    await Task.Delay(NOTIFY_DELAY);
+
+                    string sessionText = (targetConsole ? "Konsolen" : "Remote") + "-Sitzung";
+                    string sourceText = target != null ? $" von '{target.UserName}' " : " ";
+                    string infoText = $"Die {sessionText} wurde erfolgreich'{sourceText}'zu '{source.UserName}' gewechselt.";
+
+                    if (keepPrivileges != null)
+                    {
+                        if (source.Security.Impersonation != null)
+                        {
+                            async void Security_ImpersonationChanged(object sender, EventArgs e)
+                            {
+                                if (sender is ISession.ISessionSecurity security && security.Impersonation == null)
+                                {
+                                    security.ImpersonationChanged -= Security_ImpersonationChanged;
+
+                                    await _sessionService.SelectSession(source.Id).ShowNotificationAsync(NotifyMessageType.Warning,
+                                        "Insomnia", $"Die Berechtigungen wurden wiederhergestellt.", timeout: 10000);
+
+                                    UpdateNotifyArea(_sessionManager);
+                                }
+                            }
+
+                            source.Security.ImpersonationChanged -= Security_ImpersonationChanged;
+                            source.Security.ImpersonationChanged += Security_ImpersonationChanged;
+
+                            infoText += $" Die Berechtigungen werden für {keepPrivileges} beibehalten.";
+                        }
+                        else
+                            infoText += $" Die Berechtigungen wurden wiederhergestellt.";
+                    }
 
                     foreach (var svcRef in _sessionService)
-                        if (target != null)
-                            await svcRef.Service.ShowNotificationAsync(NotifyMessageType.Info,
-                                "Insomnia", $"Die Konsolen-Sitzung wurde erfolgreich von '{target.UserName}' zu '{source.UserName}' gewechselt.", timeout: 20000);
-                        else
-                            await svcRef.Service.ShowNotificationAsync(NotifyMessageType.Info,
-                                "Insomnia", $"Die Konsolen-Sitzung wurde erfolgreich zu '{source.UserName}' gewechselt.", timeout: 20000);
-
+                        if (targetConsole || svcRef.Session == source)
+                            await svcRef.Service.ShowNotificationAsync(NotifyMessageType.Info, "Insomnia", infoText, timeout: 20000);
                 }
                 catch (Exception e)
                 {
-                    Logger.LogError(e, "ConnectToConsole() failed");
+                    Logger.LogError(e, "ConnectToSession() failed");
+
+                    await _sessionService.SelectSession(trigger.Id).ShowNotificationAsync(NotifyMessageType.Error,
+                        "Insomnia", $"Wechseln der {(targetConsole ? "Konsolen" : "Remote")}-Sitzung fehlgeschlagen", timeout: 20000);
                 }
             }
         }
@@ -149,9 +189,16 @@ namespace MadWizard.Insomnia.Service.UI
             _sessionManager.UserLogin -= SessionManager_SessionChanged;
         }
 
-        private void SessionManager_SessionChanged(object sender, UserEventArgs e)
+        private void SessionManager_SessionChanged(object sender, SessionEventArgs args)
         {
-            UpdateNotifyArea(e.Session);
+            if (args is SessionLoginEventArgs login && login.IsSessionCreated)
+                UpdateNotifyArea();
+            else
+                UpdateNotifyArea(_sessionManager, args.Session);
+        }
+        private void SessionManager_SessionImpersonationChanged(object sender, SessionEventArgs args)
+        {
+            UpdateNotifyArea();
         }
         private void NetworkCommander_NetworkAvailabilityChanged(object sender, NetworkEventArgs args)
         {
@@ -188,10 +235,9 @@ namespace MadWizard.Insomnia.Service.UI
 
         private void UpdateNotifyArea()
         {
-            if (_configTray.ShowConsoleSwitch)
+            if (_configTray.SessionSwitch != null)
             {
-                foreach (ISession session in _sessionManager.Sessions)
-                    UpdateNotifyArea(session);
+                UpdateNotifyArea(_sessionManager);
             }
 
             if (_commanderConfig != null)
@@ -210,22 +256,44 @@ namespace MadWizard.Insomnia.Service.UI
                 UpdateNotifyArea(_commanderConfig);
             }
         }
-        private void UpdateNotifyArea(ISession session)
+        private void UpdateNotifyArea(ISessionManager manager)
+        {
+            foreach (ISession session in _sessionManager.Sessions)
+                UpdateNotifyArea(_sessionManager, session);
+        }
+        private void UpdateNotifyArea(ISessionManager manager, ISession session)
         {
             foreach (var svRef in _sessionService)
             {
                 var userInfo = new UserInfo()
                 {
                     SID = session.Id,
-                    Name = session.UserName,
+
                     IsConsoleConnected = session.IsConsoleConnected
                 };
 
+                if (manager.FindSessionByID(session.Id) != null) // alive?
+                {
+                    userInfo.Name = session.UserName;
 
-                if (_sessionManager.FindSessionByID(session.Id) != null)
-                    svRef.Service.ShowAvailableConsoleUser(userInfo).Wait();
+                    bool allowConnect = false
+                        || _configTray.SessionSwitch.AllowAdministrator && svRef.Session.Security.IsPrincipalAdministrator
+                        || _configTray.SessionSwitch.AllowUser && svRef.Session.Security.IsPrincipalUser
+                        || _configTray.SessionSwitch.AllowSelf && svRef.Session == session;
+
+                    if (allowConnect)
+                    {
+                        if (_configTray.SessionSwitch.AllowConsole)
+                            userInfo.AllowConnectToConsole = true;
+
+                        if (_configTray.SessionSwitch.AllowRemote && svRef.Session.IsRemoteConnected)
+                            userInfo.AllowConnectToRemote = userInfo.AllowConnectToConsole;
+                    }
+
+                    svRef.Service.ShowAvailableConnectUser(userInfo).Wait();
+                }
                 else
-                    svRef.Service.HideAvailableConsoleUser(userInfo).Wait();
+                    svRef.Service.HideAvailableConnectUser(userInfo).Wait();
             }
         }
         private void UpdateNotifyArea(Network network)

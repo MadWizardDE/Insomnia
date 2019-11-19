@@ -18,6 +18,8 @@ namespace MadWizard.Insomnia.Minion.Services
 {
     class NotificationAreaService : INotificationAreaService, IDisposable
     {
+        SessionMinionConfig _config;
+
         IUserInterface _userInterface;
         IUserMessenger _userMessenger;
 
@@ -25,13 +27,15 @@ namespace MadWizard.Insomnia.Minion.Services
         VistaMenu _vistaMenu;
 
         bool _moonriseCommander;
-        IDictionary<int, UserInfo> _consoleUsers;
+        IDictionary<int, UserInfo> _connectUsers;
         IDictionary<string, IDictionary<string, WakeTarget>> _wakeTargets;
         IDictionary<string, WakeOption> _wakeOptions;
 
-        public NotificationAreaService(IUserInterface ui, IUserMessenger messenger)
+        public NotificationAreaService(SessionMinionConfig config, IUserInterface ui, IUserMessenger messenger)
         {
-            _consoleUsers = new ConcurrentDictionary<int, UserInfo>();
+            _config = config;
+
+            _connectUsers = new ConcurrentDictionary<int, UserInfo>();
             _wakeTargets = new ConcurrentDictionary<string, IDictionary<string, WakeTarget>>();
             _wakeOptions = new ConcurrentDictionary<string, WakeOption>();
 
@@ -74,7 +78,7 @@ namespace MadWizard.Insomnia.Minion.Services
             _notifyIcon.ContextMenu?.Dispose();
             _notifyIcon.Icon = TrayIcon;
 
-            if (_consoleUsers.Count > 0 || _wakeTargets.Count > 0 || _moonriseCommander)
+            if (_connectUsers.Count > 0 || _wakeTargets.Count > 0 || _moonriseCommander)
             {
                 _vistaMenu = new VistaMenu();
 
@@ -93,7 +97,7 @@ namespace MadWizard.Insomnia.Minion.Services
                     _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
                 }
 
-                if (_consoleUsers.Count > 0)
+                if (_connectUsers.Count > 0)
                 {
                     if (_notifyIcon.ContextMenu.MenuItems.Count > 0)
                         if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Name != "-")
@@ -103,21 +107,43 @@ namespace MadWizard.Insomnia.Minion.Services
 
                     _vistaMenu.SetImage(consoleSessions, new Bitmap(Resources.User16, new Size(16, 16)));
 
-                    foreach (UserInfo user in _consoleUsers.Values)
+                    foreach (UserInfo user in _connectUsers.Values)
                     {
-                        void ContextMenu_ConsoleUserClicked(object sender, EventArgs args)
+                        void ContextMenu_ConsoleSessionClicked(object sender, EventArgs args)
                         {
                             _userMessenger.SendMessage(new ConnectToConsoleMessage(user));
                         }
 
                         MenuItem userItem = new MenuItem(user.Name);
+                        userItem.Enabled = user.AllowConnectToConsole;
                         userItem.Checked = user.IsConsoleConnected;
                         if (!user.IsConsoleConnected)
-                            userItem.Click += ContextMenu_ConsoleUserClicked;
+                            userItem.Click += ContextMenu_ConsoleSessionClicked;
                         consoleSessions.MenuItems.Add(userItem);
                     }
 
                     _notifyIcon.ContextMenu.MenuItems.Add(consoleSessions);
+
+                    if (_connectUsers.Values.Where(u => u.AllowConnectToRemote).Count() > 0)
+                    {
+                        MenuItem remoteSessions = new MenuItem("Remote-Sitzung");
+
+                        _vistaMenu.SetImage(remoteSessions, new Bitmap(Resources.User16, new Size(16, 16)));
+
+                        foreach (UserInfo user in _connectUsers.Values.Where(u => u.AllowConnectToRemote))
+                        {
+                            void ContextMenu_RemoteSessionClicked(object sender, EventArgs args)
+                            {
+                                _userMessenger.SendMessage(new ConnectToRemoteMessage(user));
+                            }
+
+                            MenuItem userItem = new MenuItem(user.Name);
+                            userItem.Click += ContextMenu_RemoteSessionClicked;
+                            remoteSessions.MenuItems.Add(userItem);
+                        }
+
+                        _notifyIcon.ContextMenu.MenuItems.Add(remoteSessions);
+                    }
                 }
 
                 if (_wakeTargets.Count > 0)
@@ -288,15 +314,15 @@ namespace MadWizard.Insomnia.Minion.Services
             });
         }
 
-        public async Task ShowAvailableConsoleUser(UserInfo user)
+        public async Task ShowAvailableConnectUser(UserInfo user)
         {
-            _consoleUsers[user.SID] = user;
+            _connectUsers[user.SID] = user;
 
             await _userInterface.SendActionAsync(UpdateContextMenu);
         }
-        public async Task HideAvailableConsoleUser(UserInfo user)
+        public async Task HideAvailableConnectUser(UserInfo user)
         {
-            _consoleUsers.Remove(user.SID);
+            _connectUsers.Remove(user.SID);
 
             await _userInterface.SendActionAsync(UpdateContextMenu);
         }

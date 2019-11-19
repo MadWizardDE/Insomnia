@@ -18,7 +18,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
             _sessionManager.UserPresent += OnUserEvent;
         }
 
-        private void OnUserEvent(object sender, UserEventArgs e)
+        private void OnUserEvent(object sender, SessionEventArgs e)
         {
             // der Wert wird auch im Session-Objekt hinterlegt
         }

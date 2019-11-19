@@ -122,6 +122,11 @@ namespace MadWizard.Insomnia.Minion
                         .AttributedPropertiesAutowired()
                         .As<INotificationAreaService>()
                         ;
+                    builder.RegisterType<SessionControlService>()
+                        .InstancePerMatchingLifetimeScope(typeof(ISessionControlService))
+                        .AttributedPropertiesAutowired()
+                        .As<ISessionControlService>()
+                        ;
                     builder.RegisterType<TestWTSService>()
                         .InstancePerMatchingLifetimeScope(typeof(ITestWTSService))
                         .AttributedPropertiesAutowired()

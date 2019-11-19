@@ -8,6 +8,8 @@ namespace MadWizard.Insomnia.Service.Sessions
     {
         int Id { get; }
 
+        public string Name { get; }
+
         public string UserName { get; }
 
         public string ClientName { get; }
@@ -23,5 +25,18 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         public bool? IsIdle { get; }
         public long? IdleTime { get; }
+
+        public ISessionSecurity Security { get; }
+
+        public interface ISessionSecurity
+        {
+            public ISession Session { get; }
+            public ISession Impersonation { get; }
+
+            public bool IsPrincipalAdministrator { get; }
+            public bool IsPrincipalUser { get; }
+
+            public event EventHandler ImpersonationChanged;
+        }
     }
 }

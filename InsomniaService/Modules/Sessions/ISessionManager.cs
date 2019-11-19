@@ -13,35 +13,35 @@ namespace MadWizard.Insomnia.Service.Sessions
         IEnumerable<ISession> Sessions { get; }
         ISession ConsoleSession { get; }
 
-        event EventHandler<UserEventArgs> ConsoleSessionChanged;
+        event EventHandler<SessionEventArgs> ConsoleSessionChanged;
 
-        event EventHandler<UserLoginEventArgs> UserLogin;
-        event EventHandler<UserEventArgs> UserIdle;
-        event EventHandler<UserEventArgs> UserPresent;
-        event EventHandler<UserEventArgs> UserLogout;
+        event EventHandler<SessionLoginEventArgs> UserLogin;
+        event EventHandler<SessionEventArgs> UserIdle;
+        event EventHandler<SessionEventArgs> UserPresent;
+        event EventHandler<SessionEventArgs> UserLogout;
 
         ISession FindSessionByID(int sid);
         ISession FindSessionByUserName(string user);
 
         //ISession CreateSession(string username, string password);
 
-        void ConnectSession(ISession source, ISession target);
+        void ConnectSession(ISession source, ISession target, TimeSpan? keepPrivileges = null);
         //void DisconnectSession(ISession session);
         //void DestroySession(ISession session);
     }
 
-    public class UserEventArgs : EventArgs
+    public class SessionEventArgs : EventArgs
     {
-        internal UserEventArgs(Session session)
+        internal SessionEventArgs(Session session)
         {
             Session = session;
         }
 
         public ISession Session { get; private set; }
     }
-    public class UserLoginEventArgs : UserEventArgs
+    public class SessionLoginEventArgs : SessionEventArgs
     {
-        internal UserLoginEventArgs(Session session, bool sessionCreated) : base(session)
+        internal SessionLoginEventArgs(Session session, bool sessionCreated) : base(session)
         {
             IsSessionCreated = sessionCreated;
         }

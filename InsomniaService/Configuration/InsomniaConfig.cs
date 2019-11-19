@@ -58,7 +58,20 @@ namespace MadWizard.Insomnia.Configuration
 
         public class TrayMenuConfig
         {
-            public bool ShowConsoleSwitch { get; set; }
+            public SessionSwitchConfig SessionSwitch { get; set; }
+
+            public class SessionSwitchConfig
+            {
+                public bool AllowAdministrator { get; set; } = true;
+                public bool AllowUser { get; set; } = false;
+
+                public bool AllowSelf { get; set; } = false;
+
+                public bool AllowConsole { get; set; } = true;
+                public bool AllowRemote { get; set; } = false;
+
+                public int? KeepPrivileges { get; set; }
+            }
         }
 
         public class MoonriseCommanderConfig

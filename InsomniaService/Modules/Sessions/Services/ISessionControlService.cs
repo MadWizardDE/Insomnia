@@ -10,5 +10,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         public Task Lock();
 
         public Task Logoff(bool force = false);
+
+        public Task ConnectTo(int sessionID);
     }
 }

@@ -60,6 +60,8 @@ namespace MadWizard.Insomnia.Minion
                         if (!_services.TryGetValue(message.ServiceType, out Service service))
                             throw new InvalidOperationException("Service is not started");
 
+                        Logger.LogDebug($"Invoking {invocation.ServiceType.Name}::{invocation.Method.Name}");
+
                         try
                         {
                             object result = service.HandleInvocation(invocation.Method, invocation.Arguments);
