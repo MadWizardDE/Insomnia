@@ -32,7 +32,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 
     public class SessionEventArgs : EventArgs
     {
-        internal SessionEventArgs(Session session)
+        internal SessionEventArgs(ISession session)
         {
             Session = session;
         }
@@ -41,7 +41,7 @@ namespace MadWizard.Insomnia.Service.Sessions
     }
     public class SessionLoginEventArgs : SessionEventArgs
     {
-        internal SessionLoginEventArgs(Session session, bool sessionCreated) : base(session)
+        internal SessionLoginEventArgs(ISession session, bool sessionCreated) : base(session)
         {
             IsSessionCreated = sessionCreated;
         }

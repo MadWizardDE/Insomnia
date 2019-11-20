@@ -46,6 +46,8 @@ namespace MadWizard.Insomnia.Service.UI
             _sessionManager = sessionManager;
 
             _sessionService = sessionService.Value;
+            _sessionService.ServiceStarted += SessionService_Started;
+            //_sessionService.ServiceStopped += SessionService_Stopped;
 
             if (_configTray.SessionSwitch != null)
             {
@@ -187,18 +189,27 @@ namespace MadWizard.Insomnia.Service.UI
             _sessionManager.UserLogout -= SessionManager_SessionChanged;
             _sessionManager.ConsoleSessionChanged -= SessionManager_SessionChanged;
             _sessionManager.UserLogin -= SessionManager_SessionChanged;
+
+            //_sessionService.ServiceStopped -= SessionService_Stopped;
+            _sessionService.ServiceStarted -= SessionService_Started;
         }
 
+        private void SessionService_Started(object sender, SessionEventArgs args)
+        {
+            Logger.LogDebug($"Bootstrapping NotificationArea[{args.Session.Id}]");
+
+            UpdateNotifyArea(args.Session);
+        }
         private void SessionManager_SessionChanged(object sender, SessionEventArgs args)
         {
-            if (args is SessionLoginEventArgs login && login.IsSessionCreated)
-                UpdateNotifyArea();
-            else
-                UpdateNotifyArea(_sessionManager, args.Session);
+            if (args is SessionLoginEventArgs)
+                UpdateNotifyArea(args.Session);
+
+            UpdateNotifyArea(_sessionManager, args.Session, null);
         }
         private void SessionManager_SessionImpersonationChanged(object sender, SessionEventArgs args)
         {
-            UpdateNotifyArea();
+            UpdateNotifyArea(args.Session);
         }
         private void NetworkCommander_NetworkAvailabilityChanged(object sender, NetworkEventArgs args)
         {
@@ -233,130 +244,134 @@ namespace MadWizard.Insomnia.Service.UI
             UpdateNotifyArea(sender as NetworkCommanderConfig);
         }
 
-        private void UpdateNotifyArea()
+        private void UpdateNotifyArea(ISession sessionTarget = null)
         {
             if (_configTray.SessionSwitch != null)
             {
-                UpdateNotifyArea(_sessionManager);
+                UpdateNotifyArea(_sessionManager, sessionTarget);
             }
 
             if (_commanderConfig != null)
             {
                 foreach (var svRef in _sessionService)
-                    svRef.Service.IsMoonriseCommanderEnabled = _configUI.MoonriseCommander != null;
+                    if (sessionTarget == null || svRef.Session == sessionTarget)
+                        svRef.Service.IsMoonriseCommanderEnabled = _configUI.MoonriseCommander != null;
 
                 foreach (var network in _commander.Networks)
                 {
                     if (!network.IsAvailable)
                         continue;
 
-                    UpdateNotifyArea(network);
+                    UpdateNotifyArea(network, sessionTarget);
                 }
 
-                UpdateNotifyArea(_commanderConfig);
+                UpdateNotifyArea(_commanderConfig, sessionTarget);
             }
         }
-        private void UpdateNotifyArea(ISessionManager manager)
+        private void UpdateNotifyArea(ISessionManager manager, ISession sessionTarget = null)
         {
             foreach (ISession session in _sessionManager.Sessions)
-                UpdateNotifyArea(_sessionManager, session);
+                UpdateNotifyArea(_sessionManager, session, sessionTarget);
         }
-        private void UpdateNotifyArea(ISessionManager manager, ISession session)
+        private void UpdateNotifyArea(ISessionManager manager, ISession session, ISession sessionTarget = null)
         {
             foreach (var svRef in _sessionService)
-            {
-                var userInfo = new UserInfo()
+                if (sessionTarget == null || svRef.Session == sessionTarget)
                 {
-                    SID = session.Id,
-
-                    IsConsoleConnected = session.IsConsoleConnected
-                };
-
-                if (manager.FindSessionByID(session.Id) != null) // alive?
-                {
-                    userInfo.Name = session.UserName;
-
-                    bool allowConnect = false
-                        || _configTray.SessionSwitch.AllowAdministrator && svRef.Session.Security.IsPrincipalAdministrator
-                        || _configTray.SessionSwitch.AllowUser && svRef.Session.Security.IsPrincipalUser
-                        || _configTray.SessionSwitch.AllowSelf && svRef.Session == session;
-
-                    if (allowConnect)
+                    var userInfo = new UserInfo()
                     {
-                        if (_configTray.SessionSwitch.AllowConsole)
-                            userInfo.AllowConnectToConsole = true;
+                        SID = session.Id,
 
-                        if (_configTray.SessionSwitch.AllowRemote && svRef.Session.IsRemoteConnected)
-                            userInfo.AllowConnectToRemote = userInfo.AllowConnectToConsole;
+                        IsConsoleConnected = session.IsConsoleConnected
+                    };
+
+                    if (manager.FindSessionByID(session.Id) != null) // alive?
+                    {
+                        userInfo.Name = session.UserName;
+
+                        bool allowConnect = false
+                            || _configTray.SessionSwitch.AllowAdministrator && svRef.Session.Security.IsPrincipalAdministrator
+                            || _configTray.SessionSwitch.AllowUser && svRef.Session.Security.IsPrincipalUser
+                            || _configTray.SessionSwitch.AllowSelf && svRef.Session == session;
+
+                        if (allowConnect)
+                        {
+                            if (_configTray.SessionSwitch.AllowConsole)
+                                userInfo.AllowConnectToConsole = true;
+
+                            if (_configTray.SessionSwitch.AllowRemote && svRef.Session.IsRemoteConnected)
+                                userInfo.AllowConnectToRemote = userInfo.AllowConnectToConsole;
+                        }
+
+                        svRef.Service.ShowAvailableConnectUser(userInfo).Wait();
                     }
-
-                    svRef.Service.ShowAvailableConnectUser(userInfo).Wait();
+                    else
+                        svRef.Service.HideAvailableConnectUser(userInfo).Wait();
                 }
-                else
-                    svRef.Service.HideAvailableConnectUser(userInfo).Wait();
-            }
         }
-        private void UpdateNotifyArea(Network network)
+        private void UpdateNotifyArea(Network network, ISession sessionTarget = null)
         {
             foreach (var networkTarget in network.Targets)
             {
-                UpdateNotifyArea(network, networkTarget);
+                UpdateNotifyArea(network, networkTarget, sessionTarget);
             }
         }
-        private void UpdateNotifyArea(Network network, NetworkTarget target)
+        private void UpdateNotifyArea(Network network, NetworkTarget target, ISession sessionTarget = null)
         {
             foreach (var svRef in _sessionService)
-            {
-                NetworkType type = network.Connection switch
+                if (sessionTarget == null || svRef.Session == sessionTarget)
                 {
-                    Network.NetworkConnection.Ethernet => NetworkType.Wired,
-                    Network.NetworkConnection.WiFi => NetworkType.Wireless,
-                    Network.NetworkConnection.Moonrise => NetworkType.Remote,
-                    _ => NetworkType.Unknown
-                };
+                    NetworkType type = network.Connection switch
+                    {
+                        Network.NetworkConnection.Ethernet => NetworkType.Wired,
+                        Network.NetworkConnection.WiFi => NetworkType.Wireless,
+                        Network.NetworkConnection.Moonrise => NetworkType.Remote,
+                        _ => NetworkType.Unknown
+                    };
 
-                var wt = new WakeTarget(target.Name, network.Name, type);
+                    var wt = new WakeTarget(target.Name, network.Name, type);
 
-                wt.AvailableModes = target.AvailableWakeModes.ToArray();
+                    wt.AvailableModes = target.AvailableWakeModes.ToArray();
 
-                if (wt.AvailableModes.Length == 2
-                    && wt.AvailableModes.Contains(WakeModeNone.ID)
-                    && wt.AvailableModes.Contains(WakeModeWOL.ID))
-                {
-                    wt.AvailableModes = new object[] { true, false };
-                    wt.SelectedMode = target.WakeMode == WakeModeWOL.ID;
-                }
-                else
-                {
-                    wt.SelectedMode = target.WakeMode;
-                }
-
-                try
-                {
-                    if (network.IsAvailable)
-                        svRef.Service.ShowWakeTarget(wt).Wait();
+                    if (wt.AvailableModes.Length == 2
+                        && wt.AvailableModes.Contains(WakeModeNone.ID)
+                        && wt.AvailableModes.Contains(WakeModeWOL.ID))
+                    {
+                        wt.AvailableModes = new object[] { true, false };
+                        wt.SelectedMode = target.WakeMode == WakeModeWOL.ID;
+                    }
                     else
-                        svRef.Service.HideWakeTarget(wt).Wait();
+                    {
+                        wt.SelectedMode = target.WakeMode;
+                    }
+
+                    try
+                    {
+                        if (network.IsAvailable)
+                            svRef.Service.ShowWakeTarget(wt).Wait();
+                        else
+                            svRef.Service.HideWakeTarget(wt).Wait();
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogError(e, $"UpdateNotifyArea failed (SID={svRef.Session.Id})");
+                    }
                 }
-                catch (Exception e)
-                {
-                    Logger.LogError(e, $"UpdateNotifyArea failed (SID={svRef.Session.Id})");
-                }
-            }
         }
-        private void UpdateNotifyArea(NetworkCommanderConfig config)
+        private void UpdateNotifyArea(NetworkCommanderConfig config, ISession sessionTarget = null)
         {
             foreach (var svRef in _sessionService)
-            {
-                try
+                if (sessionTarget == null || svRef.Session == sessionTarget)
                 {
-                    svRef.Service.ShowWakeOption(new WakeOption(WakeOption.RESOLVE_IP, config.ResolveIPAddress)).Wait();
+                    try
+                    {
+                        svRef.Service.ShowWakeOption(new WakeOption(WakeOption.RESOLVE_IP, config.ResolveIPAddress)).Wait();
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogError(e, $"UpdateNotifyArea failed (SID={svRef.Session.Id})");
+                    }
                 }
-                catch (Exception e)
-                {
-                    Logger.LogError(e, $"UpdateNotifyArea failed (SID={svRef.Session.Id})");
-                }
-            }
         }
     }
 }

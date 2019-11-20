@@ -18,6 +18,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             _tsServer = tsServer;
 
             Id = sid;
+            UserName = TSSession.UserName;
 
             Security = new SessionSecurity(this);
         }
@@ -30,7 +31,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         public string Name => TSSession.WindowStationName;
 
-        public string UserName => TSSession.UserName;
+        public string UserName { get; }
 
         public string ClientName => TSSession.ClientName;
 

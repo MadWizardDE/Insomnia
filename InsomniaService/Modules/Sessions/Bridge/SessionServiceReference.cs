@@ -20,13 +20,24 @@ namespace MadWizard.Insomnia.Service.Sessions
         }
 
         #region ISessionService-Methods
+        public event EventHandler<SessionEventArgs> ServiceStarted
+        {
+            add => _sessionService.ServiceStarted += value;
+            remove => _sessionService.ServiceStarted -= value;
+        }
+        public event EventHandler<SessionEventArgs> ServiceStopped
+        {
+            add => _sessionService.ServiceStopped += value;
+            remove => _sessionService.ServiceStopped -= value;
+        }
+
         T ISessionService<T>.SelectSession(ISession session)
         {
-            return ((ISessionService<T>)_sessionService).SelectSession(session);
+            return _sessionService.SelectSession(session);
         }
         T ISessionService<T>.SelectSession(int sessionID)
         {
-            return ((ISessionService<T>)_sessionService).SelectSession(sessionID);
+            return _sessionService.SelectSession(sessionID);
         }
 
         IEnumerator<IServiceReference<T>> IEnumerable<IServiceReference<T>>.GetEnumerator()

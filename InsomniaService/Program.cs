@@ -104,7 +104,7 @@ namespace MadWizard.Insomnia.Service
                 var targetFile = new FileTarget("file")
                 {
                     FileName = Path.Combine(hostEnvironment.ContentRootPath, "insomnia.log"),
-                    Layout = "${longdate} ${level} ${message}  ${exception}"
+                    Layout = "${longdate} ${pad:padding=5:inner=${level:uppercase=true}} ${logger:shortName=true} :: ${message}  ${exception}"
                 };
 
                 config.AddTarget(targetFile);

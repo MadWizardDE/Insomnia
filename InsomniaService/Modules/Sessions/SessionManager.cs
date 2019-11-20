@@ -236,10 +236,13 @@ namespace MadWizard.Insomnia.Service.Sessions
                     session.IsLocked = true;
                 if (desc.Reason == SessionChangeReason.SessionUnlock)
                     session.IsLocked = false;
+            }
 
-                if (desc.Reason == SessionChangeReason.SessionLogoff)
+            if (desc.Reason == SessionChangeReason.SessionLogoff)
+            {
+                if (_sessions.Remove(session.Id))
                 {
-                    _sessions.Remove(session.Id);
+                    Logger.LogInformation(InsomniaEventId.USER_LOGIN, $"User logout: {clientUser} (SID={session.Id})");
 
                     UserLogout?.Invoke(this, new SessionEventArgs(session));
                 }

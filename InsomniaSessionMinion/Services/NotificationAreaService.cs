@@ -100,12 +100,12 @@ namespace MadWizard.Insomnia.Minion.Services
                 if (_connectUsers.Count > 0)
                 {
                     if (_notifyIcon.ContextMenu.MenuItems.Count > 0)
-                        if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Name != "-")
-                            _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator hinzufügen (wenn nicht schon vorhanden)
+                        //if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Text != "-")
+                        _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator hinzufügen (wenn nicht schon vorhanden)
 
                     MenuItem consoleSessions = new MenuItem("Konsolen-Sitzung");
 
-                    _vistaMenu.SetImage(consoleSessions, new Bitmap(Resources.User16, new Size(16, 16)));
+                    _vistaMenu.SetImage(consoleSessions, new Bitmap(Resources.UserSide32, new Size(16, 16)));
 
                     foreach (UserInfo user in _connectUsers.Values)
                     {
@@ -127,8 +127,9 @@ namespace MadWizard.Insomnia.Minion.Services
                     if (_connectUsers.Values.Where(u => u.AllowConnectToRemote).Count() > 0)
                     {
                         MenuItem remoteSessions = new MenuItem("Remote-Sitzung");
+                        remoteSessions.Enabled = false; // TODO 
 
-                        _vistaMenu.SetImage(remoteSessions, new Bitmap(Resources.User16, new Size(16, 16)));
+                        _vistaMenu.SetImage(remoteSessions, new Bitmap(Resources.UserSide32, new Size(16, 16)));
 
                         foreach (UserInfo user in _connectUsers.Values.Where(u => u.AllowConnectToRemote))
                         {
@@ -197,6 +198,9 @@ namespace MadWizard.Insomnia.Minion.Services
                 }
 
                 ((System.ComponentModel.ISupportInitialize)(_vistaMenu)).EndInit();
+
+                if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Text == "-")
+                    _notifyIcon.ContextMenu.MenuItems.RemoveAt(_notifyIcon.ContextMenu.MenuItems.Count - 1);
 
                 void AddWakeGroup(IEnumerable<WakeTarget> targets)
                 {

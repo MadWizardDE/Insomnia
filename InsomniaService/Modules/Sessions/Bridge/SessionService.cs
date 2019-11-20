@@ -52,6 +52,9 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         IDictionary<ISession, IServiceReference<T>> _sessionRefs;
 
+        public event EventHandler<SessionEventArgs> ServiceStarted;
+        public event EventHandler<SessionEventArgs> ServiceStopped;
+
         internal SessionService(SessionBridge bridge) : base(typeof(T))
         {
             __bridge = bridge;
@@ -67,8 +70,10 @@ namespace MadWizard.Insomnia.Service.Sessions
             var serviceRef = __bridge.AcquireServiceReference<T>(session).Result;
 
             _sessionRefs[session] = serviceRef;
+
+            ServiceStarted?.Invoke(this, new SessionEventArgs(session));
         }
-        T ISessionService<T>.SelectSession(ISession session)
+        public T SelectSession(ISession session)
         {
             if (!_sessionRefs.ContainsKey(session))
                 throw new ArgumentException($"Session {session.Id} unknown.");
@@ -77,7 +82,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             return serviceRef.Service;
         }
-        T ISessionService<T>.SelectSession(int sessionID)
+        public T SelectSession(int sessionID)
         {
             foreach (var session in _sessionRefs.Keys)
                 if (session.Id == sessionID)
@@ -93,6 +98,8 @@ namespace MadWizard.Insomnia.Service.Sessions
             __bridge.ReleaseServiceReference(_sessionRefs[session]).Wait();
 
             _sessionRefs.Remove(session);
+
+            ServiceStopped?.Invoke(this, new SessionEventArgs(session));
         }
 
         IEnumerator<IServiceReference<T>> IEnumerable<IServiceReference<T>>.GetEnumerator()

@@ -12,11 +12,17 @@ namespace MadWizard.Insomnia.Minion
 {
     class MinionApplicationContext : ApplicationContext, IUserInterface, IDisposable
     {
+        const int INITIAL_WAIT_TIME = 5000;
+
         SynchronizationContext _syncContext;
+
+        private DateTime _startupTime;
 
         public MinionApplicationContext()
         {
             StartUIThread();
+
+            _startupTime = DateTime.Now;
         }
 
         [Autowired]
@@ -50,16 +56,29 @@ namespace MadWizard.Insomnia.Minion
             }
         }
 
+        private void WaitIfNecessary()
+        {
+            if ((DateTime.Now - _startupTime).TotalMilliseconds < INITIAL_WAIT_TIME)
+                Thread.Sleep((int)(DateTime.Now - _startupTime).TotalMilliseconds);
+        }
+
         #region Control-Flow
         void IUserInterface.SendAction(Action action)
         {
             if (_syncContext == null)
                 throw new InvalidOperationException("No SynchronizationContext");
 
+            WaitIfNecessary();
+
             _syncContext.Send(delegate { action(); }, null);
         }
         Task IUserInterface.SendActionAsync(Action action)
         {
+            if (_syncContext == null)
+                throw new InvalidOperationException("No SynchronizationContext");
+
+            WaitIfNecessary();
+
             var taskSource = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             _syncContext.Post(delegate
@@ -83,6 +102,8 @@ namespace MadWizard.Insomnia.Minion
         {
             if (_syncContext == null)
                 throw new InvalidOperationException("No SynchronizationContext");
+
+            WaitIfNecessary();
 
             _syncContext.Post(delegate { action(); }, null);
         }

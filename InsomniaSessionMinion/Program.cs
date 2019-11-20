@@ -62,7 +62,7 @@ namespace MadWizard.Insomnia.Minion
                             var targetFile = new FileTarget("file")
                             {
                                 FileName = Path.Combine(ctx.HostingEnvironment.ContentRootPath, "minion.log"),
-                                Layout = "${longdate} ${level} SID=" + Process.GetCurrentProcess().SessionId + " ${message}  ${exception}"
+                                Layout = "${longdate} ${pad:padding=5:inner=${level:uppercase=true}} SID=${processinfo:property=SessionId} ${logger:shortName=true} :: ${message}  ${exception}"
                             };
 
                             config.AddTarget(targetFile);
@@ -89,16 +89,16 @@ namespace MadWizard.Insomnia.Minion
                         ;
 
                     builder.RegisterType<ServiceManager>()
-                                    .AttributedPropertiesAutowired()
-                                    .AsImplementedInterfaces()
-                                    .SingleInstance()
-                                    ;
+                        .AttributedPropertiesAutowired()
+                        .AsImplementedInterfaces()
+                        .SingleInstance()
+                        ;
 
                     builder.RegisterType<MinionApplicationContext>()
-                                    .AttributedPropertiesAutowired()
-                                    .AsImplementedInterfaces()
-                                    .SingleInstance()
-                                    ;
+                        .AttributedPropertiesAutowired()
+                        .AsImplementedInterfaces()
+                        .SingleInstance()
+                        ;
                     #endregion
 
                     #region Custom-Services

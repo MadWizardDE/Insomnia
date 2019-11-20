@@ -43,7 +43,6 @@ namespace MadWizard.Insomnia.Service.Sessions
             _sessionManager = sessionManager;
 
             _sessionManager.UserLogin += SessionManager_UserLogin;
-            _sessionManager.UserLogout += SessionManager_UserLogout;
 
             _services = new ConcurrentDictionary<Type, SessionService>();
             _minions = new ConcurrentDictionary<ISession, SessionMinion>();
@@ -66,12 +65,6 @@ namespace MadWizard.Insomnia.Service.Sessions
                 foreach (SessionService service in _services.Values)
                     service.AddSession(args.Session);
         }
-        private void SessionManager_UserLogout(object sender, SessionEventArgs args)
-        {
-            foreach (SessionService service in _services.Values)
-                service.RemoveSession(args.Session);
-            _minions.Remove(args.Session);
-        }
         #endregion
 
         #region SessionService(-References)
@@ -80,14 +73,21 @@ namespace MadWizard.Insomnia.Service.Sessions
             if (!_services.TryGetValue(typeof(T), out SessionService service))
                 service = CreateSessionService<T>();
 
+            Logger.LogDebug($"SessionService<{service.ServiceType.Name}>-Reference aquired");
+
             return new SessionServiceReference<T>((SessionService<T>)service);
         }
 
         private void SessionService_ReferencesChanged(object sender, EventArgs args)
         {
-            if (sender is SessionService service && service.ReferenceCount == 0)
+            if (sender is SessionService service)
             {
-                DestroySessionService(service);
+                Logger.LogDebug($"SessionService<{service.ServiceType.Name}>-#Reference = {service.ReferenceCount}");
+
+                if (service.ReferenceCount == 0)
+                {
+                    DestroySessionService(service);
+                }
             }
         }
 
@@ -101,6 +101,8 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             _services.Add(typeof(T), service);
 
+            Logger.LogDebug($"SessionService<{service.ServiceType.Name}> created");
+
             return service;
         }
         private void DestroySessionService(SessionService service)
@@ -109,6 +111,8 @@ namespace MadWizard.Insomnia.Service.Sessions
             service.Dispose();
 
             _services.Remove(service.ServiceType);
+
+            Logger.LogDebug($"SessionService<{service.ServiceType.Name}> destroyed");
         }
         #endregion
 
@@ -117,25 +121,37 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             if (!_minions.TryGetValue(session, out SessionMinion minion))
             {
-                Logger.LogDebug($"Launching SessionMinion<{session.Id}>...");
+                Logger.LogDebug($"Launching SessionMinion[{session.Id}]...");
 
                 minion = await LaunchMinion(session.Id, MINION_TIMEOUT);
             }
 
-            return new ServiceReference<T>(session, await minion.StartService<T>());
+            if (!minion.IsConnected)
+                throw new InvalidOperationException($"Minion[{session.Id}] not connected");
+
+            var service = new ServiceReference<T>(session, await minion.StartService<T>());
+
+            Logger.LogDebug($"Minion[{minion.Session.Id}] started Service<{typeof(T).Name}>");
+
+            return service;
         }
         internal async Task ReleaseServiceReference<T>(IServiceReference<T> serviceRef) where T : class
         {
             if (!_minions.TryGetValue(serviceRef.Session, out SessionMinion minion))
-                throw new InvalidOperationException("Minion not started");
+                throw new InvalidOperationException($"Minion[{serviceRef.Session.Id}] not started");
 
-            await minion.StopService<T>();
-
-            if (minion.ServiceCount == 0)
+            if (minion.IsConnected)
             {
-                Logger.LogDebug($"Terminating SessionMinion<{serviceRef.Session.Id}>...");
+                await minion.StopService<T>();
 
-                await minion.Terminate(MINION_TIMEOUT);
+                Logger.LogDebug($"Minion[{minion.Session.Id}] stopped Service<{typeof(T).Name}>");
+
+                if (minion.ServiceCount == 0)
+                {
+                    Logger.LogDebug($"Terminating SessionMinion<{serviceRef.Session.Id}>...");
+
+                    await minion.Terminate(MINION_TIMEOUT);
+                }
             }
         }
         #endregion
@@ -171,11 +187,9 @@ namespace MadWizard.Insomnia.Service.Sessions
                             };
 
                             SessionMinion minion = new SessionMinion(session, process, pipe, config);
-                            minion.MessageArrived += Minion_MessageArrived;
-                            minion.Terminated += Minion_Terminated;
-                            _minions.Add(minion.Session, minion);
+                            AddMinion(minion);
 
-                            Logger.LogDebug(InsomniaEventId.SESSION_MINION_STARTED, $"SessionHelper connected (SID={minion.SID}, PID={minion.PID})");
+                            Logger.LogDebug(InsomniaEventId.SESSION_MINION_STARTED, $"SessionMinion connected (SID={minion.SID}, PID={minion.PID})");
                         }
                     }
                 }
@@ -235,7 +249,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             // CREATE PROCESS
 
             if (Logger.IsEnabled(LogLevel.Debug))
-                Logger.LogDebug($"SessionHelper started (PID={pid})");
+                Logger.LogDebug($"SessionMinion started (PID={pid})");
 
             int time = 0;
             while (timeout == null || (time += 100) < timeout)
@@ -247,6 +261,23 @@ namespace MadWizard.Insomnia.Service.Sessions
             }
 
             throw new TimeoutException();
+        }
+
+        private void AddMinion(SessionMinion minion)
+        {
+            minion.MessageArrived += Minion_MessageArrived;
+            minion.Terminated += Minion_Terminated;
+
+            _minions.Add(minion.Session, minion);
+        }
+        private void RemoveMinion(SessionMinion minion)
+        {
+            minion.Terminated -= Minion_Terminated;
+            minion.MessageArrived -= Minion_MessageArrived;
+
+            foreach (SessionService service in _services.Values)
+                service.RemoveSession(minion.Session);
+            _minions.Remove(minion.Session);
         }
 
         private SessionMinion MinionByPID(int pid)
@@ -271,7 +302,8 @@ namespace MadWizard.Insomnia.Service.Sessions
                 return null;
             }
         }
-        private void HandleMessage<T>(ISession session, T message) where T : UserMessage
+
+        private void Minion_HandleMessage<T>(ISession session, T message) where T : UserMessage
         {
             var handlers = _compContext.Resolve<IEnumerable<ISessionMessageHandler<T>>>();
 
@@ -290,7 +322,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             var session = (sender as SessionMinion).Session;
 
-            var method = typeof(SessionBridge).GetMethod(nameof(HandleMessage), BindingFlags.Instance | BindingFlags.NonPublic).MakeGenericMethod(args.Message.GetType());
+            var method = typeof(SessionBridge).GetMethod(nameof(Minion_HandleMessage), BindingFlags.Instance | BindingFlags.NonPublic).MakeGenericMethod(args.Message.GetType());
 
             method.Invoke(this, new object[] { session, args.Message });
         }
@@ -301,8 +333,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             if (args.ForcedKill) Logger.LogError(InsomniaEventId.SESSION_MINION_STOPPED, $"SessionMinion terminated (SID={minion.SID}, PID={minion.PID}) -> hung");
             else Logger.LogDebug(InsomniaEventId.SESSION_MINION_STOPPED, $"SessionMinion disconnected (SID={minion.SID}, PID={minion.PID})");
 
-            minion.Terminated -= Minion_Terminated;
-            _minions.Remove(minion.Session);
+            RemoveMinion(minion);
         }
         #endregion
 

@@ -44,9 +44,13 @@ namespace MadWizard.Insomnia.Service.Sessions
             _pipe.Disconnected += Pipe_Disconnected;
 
             _pipe.PushMessage(new StartupMessage(Config = config));
+
+            IsConnected = true;
         }
 
         internal SessionMinionConfig Config { get; private set; }
+
+        internal bool IsConnected { get; private set; }
 
         internal ISession Session { get; private set; }
         internal Process Process { get; private set; }
@@ -89,6 +93,8 @@ namespace MadWizard.Insomnia.Service.Sessions
         }
         void Pipe_Disconnected(NamedPipeConnection<Message, Message> connection)
         {
+            IsConnected = false;
+
             Thread.Sleep(500);
 
             if (!_terminating && !Process.HasExited)
@@ -100,6 +106,8 @@ namespace MadWizard.Insomnia.Service.Sessions
         }
         void Process_Exited(object sender, EventArgs e)
         {
+            IsConnected = false;
+
             Terminated?.Invoke(this, new TerminationEventArgs(_forcedKill));
         }
         #endregion
