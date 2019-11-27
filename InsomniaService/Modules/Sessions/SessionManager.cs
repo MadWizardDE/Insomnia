@@ -164,9 +164,9 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             Session consoleSession = (Session)ConsoleSession;
 
-            string clientUser = consoleSession.ClientUser;
+            string clientUser = consoleSession?.ClientUser;
 
-            if (Logger.IsEnabled(LogLevel.Debug))
+            if (consoleSession != null && Logger.IsEnabled(LogLevel.Debug))
             {
                 var sb = new StringBuilder();
                 sb.Append($"PowerEvent: Status={status} ");
