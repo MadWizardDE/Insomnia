@@ -86,6 +86,8 @@ namespace MadWizard.Insomnia.Configuration
                 TitlePattern = new Dictionary<string, WindowTitlePattern>();
             }
 
+            public int WaitTime { get; set; } = 2000;
+
             public IDictionary<string, WindowTitlePattern> TitlePattern { get; private set; }
 
             public class WindowTitlePattern
@@ -101,9 +103,18 @@ namespace MadWizard.Insomnia.Configuration
     {
         public bool Log { get; set; }
 
+        public SuspendState SuspendTo { get; set; } = SuspendState.SLEEP;
+
         public ActivityDetectorConfig ActivityDetector { get; set; }
         public NetworkCommanderConfig NetworkCommander { get; set; }
         public AntiSleepWalkConfig AntiSleepWalk { get; set; }
+
+        public enum SuspendState
+        {
+            SLEEP,
+
+            HIBERNATE
+        }
 
         public class ActivityDetectorConfig
         {
@@ -114,6 +125,7 @@ namespace MadWizard.Insomnia.Configuration
             public RemoteDesktopConnectionConfig RemoteDesktopConnection { get; set; }
             public UserIdleConfig UserIdle { get; set; }
             public WakeOnLANConfig WakeOnLAN { get; set; }
+            public ManualOverrideConfig ManualOverride { get; set; }
 
             public class PingHostConfig
             {
@@ -161,6 +173,10 @@ namespace MadWizard.Insomnia.Configuration
             }
 
             public class WakeOnLANConfig
+            {
+            }
+
+            public class ManualOverrideConfig
             {
             }
         }

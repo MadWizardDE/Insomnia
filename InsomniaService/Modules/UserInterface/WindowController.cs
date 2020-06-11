@@ -13,7 +13,7 @@ using static MadWizard.Insomnia.Configuration.UserInterfaceConfig;
 
 namespace MadWizard.Insomnia.Service.UI
 {
-    class WindowController : IPowerEventHandler
+    class WindowController : ISessionChangeHandler
     {
         WindowCleanerConfig _config;
 
@@ -26,26 +26,25 @@ namespace MadWizard.Insomnia.Service.UI
             _WindowManagerFactory = WindowManagerFactory;
         }
 
-        void IPowerEventHandler.OnPowerEvent(PowerBroadcastStatus status)
+        void ISessionChangeHandler.OnSessionChange(SessionChangeDescription desc)
         {
             void WipeTimer_Elapsed(object sender, ElapsedEventArgs e)
             {
-                var manager = _WindowManagerFactory();
+                using var manager = _WindowManagerFactory();
 
                 foreach (var pattern in _config.TitlePattern.Values)
-                    foreach (var service in manager.Value)
-                        service.Service.Wipe(pattern.Text);
-
-                manager.Dispose();
+                    manager.Value.SelectSession(desc.SessionId).Wipe(pattern.Text);
             }
 
-            switch (status)
+            switch (desc.Reason)
             {
-                case PowerBroadcastStatus.ResumeSuspend:
+                case SessionChangeReason.RemoteConnect:
+                case SessionChangeReason.ConsoleConnect:
+                case SessionChangeReason.SessionUnlock:
                     if (_config.TitlePattern.Count > 0)
                     {
                         Timer wipeTimer = new Timer();
-                        wipeTimer.Interval = 2000;
+                        wipeTimer.Interval = _config.WaitTime;
                         wipeTimer.AutoReset = false;
                         wipeTimer.Elapsed += WipeTimer_Elapsed;
                         wipeTimer.Start();

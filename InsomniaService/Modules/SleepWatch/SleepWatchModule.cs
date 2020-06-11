@@ -65,6 +65,13 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                     .AsImplementedInterfaces()
                     .SingleInstance()
                     ;
+                if (_config.ActivityDetector.ManualOverride != null)
+                    builder.RegisterType<ManualOverrideSwitch>()
+                    .AttributedPropertiesAutowired()
+                    .AsImplementedInterfaces()
+                    .SingleInstance()
+                    .AsSelf()
+                    ;
                 #endregion
                 #region Examiners
                 builder.RegisterType<ActivityDetector.SleepInhibitor>()

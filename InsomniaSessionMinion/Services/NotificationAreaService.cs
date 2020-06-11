@@ -51,7 +51,15 @@ namespace MadWizard.Insomnia.Minion.Services
 
         Icon TrayIcon
         {
-            get => _wakeTargets.Count > 0 ? Resources.MoonWhiteOutline12 : Resources.MoonBlackOutline24;
+            get
+            {
+                bool availableTargets = _wakeTargets.Count > 0;
+                bool sleepless = _wakeOptions.TryGetValue(WakeOption.SLEEPLESS, out WakeOption option) && (bool)option.Value;
+
+                return availableTargets ? Resources.MoonWhiteOutline12
+                        : sleepless ? Resources.MoonBlackRedEyeOutline24
+                            : Resources.MoonBlackOutline24;
+            }
         }
 
         #region Component Lifecycle
@@ -153,48 +161,50 @@ namespace MadWizard.Insomnia.Minion.Services
                         AddWakeGroup(defaultWakeGroup.Values);
                     foreach (var groupName in _wakeTargets.Keys.Where(name => name != ""))
                         AddWakeGroup(_wakeTargets[groupName].Values);
+                }
 
-                    if (_wakeOptions.Count > 0)
+                if (_wakeOptions.Count > 0)
+                {
+                    _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
+
+                    MenuItem menuOptions = new MenuItem("Optionen");
+
+                    foreach (WakeOption option in _wakeOptions.Values)
                     {
-                        _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
-
-                        MenuItem menuOptions = new MenuItem("Optionen");
-
-                        foreach (WakeOption option in _wakeOptions.Values)
+                        void ContextMenu_OptionClicked(object sender, EventArgs args)
                         {
-                            void ContextMenu_OptionClicked(object sender, EventArgs args)
-                            {
-                                if (option.Value is bool check)
-                                {
-                                    _userMessenger.SendMessage(new ConfigureWakeOptionMessage(new WakeOption(option.Key, !check)));
-                                }
-                            }
-
-                            static string ToLabel(WakeOption option)
-                            {
-                                switch (option.Key)
-                                {
-                                    case WakeOption.RESOLVE_IP:
-                                        return "IP-Adresse auflösen";
-                                    default:
-                                        return option.Key;
-                                }
-                            }
-
-                            MenuItem optionItem = new MenuItem(ToLabel(option));
                             if (option.Value is bool check)
                             {
-                                optionItem.Checked = check;
-                                optionItem.Click += ContextMenu_OptionClicked;
+                                _userMessenger.SendMessage(new ConfigureWakeOptionMessage(new WakeOption(option.Key, !check)));
                             }
-                            else
-                                optionItem.Enabled = false;
-
-                            menuOptions.MenuItems.Add(optionItem);
                         }
 
-                        _notifyIcon.ContextMenu.MenuItems.Add(menuOptions);
+                        static string ToLabel(WakeOption option)
+                        {
+                            switch (option.Key)
+                            {
+                                case WakeOption.RESOLVE_IP:
+                                    return "IP-Adresse auflösen";
+                                case WakeOption.SLEEPLESS:
+                                    return "Schlaflos";
+                                default:
+                                    return option.Key;
+                            }
+                        }
+
+                        MenuItem optionItem = new MenuItem(ToLabel(option));
+                        if (option.Value is bool check)
+                        {
+                            optionItem.Checked = check;
+                            optionItem.Click += ContextMenu_OptionClicked;
+                        }
+                        else
+                            optionItem.Enabled = false;
+
+                        menuOptions.MenuItems.Add(optionItem);
                     }
+
+                    _notifyIcon.ContextMenu.MenuItems.Add(menuOptions);
                 }
 
                 ((System.ComponentModel.ISupportInitialize)(_vistaMenu)).EndInit();

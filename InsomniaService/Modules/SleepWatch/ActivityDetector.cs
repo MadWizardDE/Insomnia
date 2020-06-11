@@ -180,9 +180,13 @@ namespace MadWizard.Insomnia.Service.SleepWatch
         {
             int _idleMax;
 
-            public SleepEnforcer(int idleMax)
+            bool _hibernate;
+
+            public SleepEnforcer(InsomniaConfig config, int idleMax)
             {
                 _idleMax = idleMax;
+
+                _hibernate = config.SleepWatch?.SuspendTo == SuspendState.HIBERNATE;
             }
 
             [Autowired]
@@ -194,7 +198,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 {
                     Logger.LogInformation(InsomniaEventId.COMPUTER_IDLE, "Computer idle", 5);
 
-                    Win32API.EnterStandby();
+                    Win32API.EnterStandby(_hibernate);
                 }
             }
         }

@@ -70,6 +70,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         public struct WakeOption
         {
             public const string RESOLVE_IP = "IP_RESOLVE";
+            public const string SLEEPLESS = "SLEEPLESS";
 
             public WakeOption(string name, object value)
             {

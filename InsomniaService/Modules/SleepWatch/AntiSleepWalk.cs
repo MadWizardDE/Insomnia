@@ -21,6 +21,8 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
         ActivityDetector.SleepInhibitor _sleepInhibitor;
 
+        bool _hibernate;
+
         public AntiSleepWalk(InsomniaConfig config, ISessionManager sessionManager,
             ActivityDetector.SleepInhibitor sleepInhibitor = null)
         {
@@ -34,6 +36,8 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                 _presenceTimer.AutoReset = false;
                 _presenceTimer.Interval = config.Interval;
                 _presenceTimer.Elapsed += OnTimerElapsed;
+
+                _hibernate = config.SleepWatch.SuspendTo == SleepWatchConfig.SuspendState.HIBERNATE;
             }
         }
 
@@ -86,7 +90,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
 
             Logger.LogInformation(InsomniaEventId.USER_NOT_PRESENT, "User not present");
 
-            Win32API.EnterStandby();
+            Win32API.EnterStandby(_hibernate);
         }
 
         void Disarm()

@@ -3,6 +3,7 @@ using MadWizard.Insomnia.Configuration;
 using MadWizard.Insomnia.Service.Lifetime;
 using MadWizard.Insomnia.Service.Sessions;
 using MadWizard.Insomnia.Service.SleepWatch;
+using MadWizard.Insomnia.Service.SleepWatch.Detector;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -13,6 +14,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using static MadWizard.Insomnia.Configuration.SleepWatchConfig;
+using static MadWizard.Insomnia.Configuration.SleepWatchConfig.ActivityDetectorConfig;
 using static MadWizard.Insomnia.Service.Sessions.INotificationAreaService;
 using static MadWizard.Insomnia.Service.SleepWatch.NetworkCommander;
 using Timer = System.Timers.Timer;
@@ -32,13 +34,14 @@ namespace MadWizard.Insomnia.Service.UI
 
         NetworkCommander _commander;
         NetworkCommanderConfig _commanderConfig;
+        ManualOverrideSwitch _overrideSwitch;
 
         ISessionManager _sessionManager;
         ISessionService<INotificationAreaService> _sessionService;
 
         public NotificationAreaController(InsomniaConfig config,
             ISessionManager sessionManager, Lazy<ISessionService<INotificationAreaService>> sessionService,
-            NetworkCommander commander = null)
+            NetworkCommander commander = null, ManualOverrideSwitch overrideSwitch = null)
         {
             _configUI = config.UserInterface;
             _configTray = _configUI?.TrayMenu;
@@ -65,7 +68,14 @@ namespace MadWizard.Insomnia.Service.UI
                 _commander.NetworkTargetChanged += NetworkCommander_NetworkTargetChanged;
                 _commanderConfig.ConfigChanged += NetworkCommander_ConfigChanged;
             }
+
+            if (overrideSwitch != null)
+            {
+                _overrideSwitch = overrideSwitch;
+                _overrideSwitch.SwitchStateChanged += ManualOverrideSwitch_StateChanged;
+            }
         }
+
         [Autowired]
         ILogger<NotificationAreaController> Logger { get; set; }
 
@@ -91,6 +101,9 @@ namespace MadWizard.Insomnia.Service.UI
             {
                 case WakeOption.RESOLVE_IP:
                     _commanderConfig.ResolveIPAddress = (bool)message.Option.Value;
+                    break;
+                case WakeOption.SLEEPLESS:
+                    _overrideSwitch.Enabled = (bool)message.Option.Value;
                     break;
             }
         }
@@ -186,6 +199,9 @@ namespace MadWizard.Insomnia.Service.UI
 
         void IDisposable.Dispose()
         {
+            if (_overrideSwitch != null)
+                _overrideSwitch.SwitchStateChanged -= ManualOverrideSwitch_StateChanged;
+
             _sessionManager.UserLogout -= SessionManager_SessionChanged;
             _sessionManager.ConsoleSessionChanged -= SessionManager_SessionChanged;
             _sessionManager.UserLogin -= SessionManager_SessionChanged;
@@ -244,6 +260,11 @@ namespace MadWizard.Insomnia.Service.UI
             UpdateNotifyArea(sender as NetworkCommanderConfig);
         }
 
+        private void ManualOverrideSwitch_StateChanged(object sender, EventArgs args)
+        {
+            UpdateNotifyArea(sender as ManualOverrideSwitch);
+        }
+
         private void UpdateNotifyArea(ISession sessionTarget = null)
         {
             if (_configTray.SessionSwitch != null)
@@ -264,9 +285,13 @@ namespace MadWizard.Insomnia.Service.UI
 
                     UpdateNotifyArea(network, sessionTarget);
                 }
-
-                UpdateNotifyArea(_commanderConfig, sessionTarget);
             }
+
+            // Options
+            if (_overrideSwitch != null)
+                UpdateNotifyArea(_overrideSwitch, sessionTarget);
+            if (_commanderConfig != null)
+                UpdateNotifyArea(_commanderConfig, sessionTarget);
         }
         private void UpdateNotifyArea(ISessionManager manager, ISession sessionTarget = null)
         {
@@ -300,7 +325,7 @@ namespace MadWizard.Insomnia.Service.UI
                                 userInfo.AllowConnectToConsole = true;
 
                             if (_configTray.SessionSwitch.AllowRemote && svRef.Session.IsRemoteConnected)
-                                userInfo.AllowConnectToRemote = userInfo.AllowConnectToConsole;
+                                userInfo.AllowConnectToRemote = false && userInfo.AllowConnectToConsole; // TODO maybe never?
                         }
 
                         svRef.Service.ShowAvailableConnectUser(userInfo).Wait();
@@ -358,6 +383,23 @@ namespace MadWizard.Insomnia.Service.UI
                     }
                 }
         }
+
+        private void UpdateNotifyArea(ManualOverrideSwitch overrideSwitch, ISession sessionTarget = null)
+        {
+            foreach (var svRef in _sessionService)
+                if (sessionTarget == null || svRef.Session == sessionTarget)
+                {
+                    try
+                    {
+                        svRef.Service.ShowWakeOption(new WakeOption(WakeOption.SLEEPLESS, overrideSwitch.Enabled)).Wait();
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogError(e, $"UpdateNotifyArea failed (SID={svRef.Session.Id})");
+                    }
+                }
+        }
+
         private void UpdateNotifyArea(NetworkCommanderConfig config, ISession sessionTarget = null)
         {
             foreach (var svRef in _sessionService)
