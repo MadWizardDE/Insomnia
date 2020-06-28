@@ -113,7 +113,7 @@ namespace MadWizard.Insomnia.Minion.Services
 
                     MenuItem consoleSessions = new MenuItem("Konsolen-Sitzung");
 
-                    _vistaMenu.SetImage(consoleSessions, new Bitmap(Resources.UserSide32, new Size(16, 16)));
+                    _vistaMenu.SetImage(consoleSessions, new Bitmap(Resources.Monitor64, new Size(16, 16)));
 
                     foreach (UserInfo user in _connectUsers.Values)
                     {
