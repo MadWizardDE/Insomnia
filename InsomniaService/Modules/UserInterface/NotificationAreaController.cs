@@ -219,7 +219,10 @@ namespace MadWizard.Insomnia.Service.UI
         private void SessionManager_SessionChanged(object sender, SessionEventArgs args)
         {
             if (args is SessionLoginEventArgs)
+            {
+                RecreateNotifyArea(args.Session);
                 UpdateNotifyArea(args.Session);
+            }
 
             UpdateNotifyArea(_sessionManager, args.Session, null);
         }
@@ -265,6 +268,12 @@ namespace MadWizard.Insomnia.Service.UI
             UpdateNotifyArea(sender as ManualOverrideSwitch);
         }
 
+        private void RecreateNotifyArea(ISession sessionTarget = null)
+        {
+            foreach (var svRef in _sessionService)
+                if (sessionTarget == null || svRef.Session == sessionTarget)
+                    svRef.Service.Recreate();
+        }
         private void UpdateNotifyArea(ISession sessionTarget = null)
         {
             if (_configTray.SessionSwitch != null)
