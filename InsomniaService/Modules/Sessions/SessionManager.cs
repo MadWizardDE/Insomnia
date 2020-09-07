@@ -69,8 +69,8 @@ namespace MadWizard.Insomnia.Service.Sessions
         [Autowired]
         ILogger<SessionManager> Logger { get; set; }
 
-        public bool ConsoleLocked => ConsoleSession.IsLocked.HasValue ? ConsoleSession.IsLocked.Value : false;
-        public bool ConsoleActive => ConsoleSession.ConnectionState == ConnectionState.Active;
+        public bool ConsoleLocked => (ConsoleSession?.IsLocked.HasValue ?? false) ? ConsoleSession.IsLocked.Value : false;
+        public bool ConsoleActive => ConsoleSession?.ConnectionState == ConnectionState.Active;
 
         public ISession this[int sid] => _sessions[sid];
         public IEnumerable<ISession> Sessions => _sessions.Values;
@@ -83,9 +83,9 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             add
             {
-                AcquireIdleTimeService();
-
                 _eventUserIdle += value;
+
+                AcquireIdleTimeService();
             }
 
             remove
@@ -99,9 +99,9 @@ namespace MadWizard.Insomnia.Service.Sessions
         {
             add
             {
-                AcquireIdleTimeService();
-
                 _eventUserPresent += value;
+
+                AcquireIdleTimeService();
             }
 
             remove
@@ -136,7 +136,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         }
         private void ReleaseIdleTimeService()
         {
-            if (_eventUserIdle != null && _eventUserPresent == null)
+            if (_eventUserIdle == null && _eventUserPresent == null)
             {
                 foreach (Session session in _sessions.Values)
                 {
@@ -162,14 +162,13 @@ namespace MadWizard.Insomnia.Service.Sessions
                     break;
             }
 
+            var sb = new StringBuilder();
+            sb.Append($"PowerEvent: Status={status} ");
+
             Session consoleSession = (Session)ConsoleSession;
-
-            string clientUser = consoleSession?.ClientUser;
-
             if (consoleSession != null && Logger.IsEnabled(LogLevel.Debug))
             {
-                var sb = new StringBuilder();
-                sb.Append($"PowerEvent: Status={status} ");
+            string clientUser = consoleSession?.ClientUser;
 
                 sb.Append("(");
                 sb.Append($"Console: SessionId={consoleSession.Id}, ");
@@ -177,11 +176,11 @@ namespace MadWizard.Insomnia.Service.Sessions
                     sb.Append($"User={clientUser}, ");
                 sb.Append($"State={consoleSession.ConnectionState}");
                 if (consoleSession.ConnectionState == ConnectionState.Active)
-                    sb.Append($"|{(ConsoleLocked ? "Locked" : "Unlocked")}");
+                    sb.Append($"|{(consoleSession.IsLocked.HasValue ? (consoleSession.IsLocked.Value ? "Locked" : "Unlocked") : "")}");
                 sb.Append(")");
-
-                Logger.LogDebug(InsomniaEventId.POWER_EVENT_INFO, sb.ToString());
             }
+
+            Logger.LogDebug(InsomniaEventId.POWER_EVENT_INFO, sb.ToString());
         }
         void ISessionChangeHandler.OnSessionChange(SessionChangeDescription desc)
         {
@@ -199,6 +198,8 @@ namespace MadWizard.Insomnia.Service.Sessions
                 if (clientUser.Length > 0)
                     sb.Append($"User={clientUser}, ");
                 sb.Append($"State={session.ConnectionState}");
+                if (session.ConnectionState == ConnectionState.Active)
+                    sb.Append($"|{(session.IsLocked.HasValue ? (session.IsLocked.Value ? "Locked" : "Unlocked") : "")}");
                 sb.Append(")");
 
                 Logger.LogDebug(InsomniaEventId.SESSION_CHANGE_INFO, sb.ToString());
@@ -261,14 +262,22 @@ namespace MadWizard.Insomnia.Service.Sessions
                 session.IsIdle = false;
 
                 if (lastIdle != session.IsIdle)
+                {
+                    Logger.LogDebug($"Session<{session.Id}> is not in idle any longer.");
+
                     _eventUserPresent?.Invoke(this, new SessionEventArgs(session));
+                }
             }
             else if (message.Time > _config.Interval)
             {
                 session.IsIdle = true;
 
                 if (lastIdle != session.IsIdle)
+                {
+                    Logger.LogDebug($"Session<{session.Id}> is in idle (since {message.Time} ms).");
+
                     _eventUserIdle?.Invoke(this, new SessionEventArgs(session));
+                }
             }
         }
 

@@ -91,7 +91,7 @@ namespace MadWizard.Insomnia.Minion
         private void StartService(Type serviceType)
         {
             if (_services.ContainsKey(serviceType))
-                throw new InvalidOperationException("Service already started");
+                throw new InvalidOperationException($"Service<{serviceType.Name}> already started");
 
             ILifetimeScope serviceScope = _lifetimeScope.BeginLifetimeScope(serviceType);
 
@@ -104,7 +104,7 @@ namespace MadWizard.Insomnia.Minion
         private void StopService(Type serviceType)
         {
             if (!_services.TryGetValue(serviceType, out Service service))
-                throw new InvalidOperationException("Service is not started");
+                throw new InvalidOperationException($"Service<{serviceType.Name}> is not started");
 
             service.Stop();
 

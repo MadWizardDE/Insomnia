@@ -1,14 +1,10 @@
-﻿using Autofac;
-using Autofac.Features.OwnedInstances;
-using MadWizard.Insomnia.Configuration;
+﻿using MadWizard.Insomnia.Configuration;
 using MadWizard.Insomnia.Service.Lifetime;
 using MadWizard.Insomnia.Service.Sessions;
 using MadWizard.Insomnia.Tools;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.ServiceProcess;
-using System.Text;
 using System.Timers;
 
 namespace MadWizard.Insomnia.Service.SleepWatch
@@ -53,15 +49,33 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                     break;
 
                 case PowerBroadcastStatus.ResumeSuspend:
-                    _presenceTimer.Start();
-
-                    _sessionManager.UserLogin += OnUserDetected;
-
-                    if (_sessionManager.ConsoleActive && !_sessionManager.ConsoleLocked)
+                    if (!_presenceTimer.Enabled)
                     {
-                        //= keine Kennworteingabe nach dem Aufwachen
+                        _presenceTimer.Start();
 
-                        _sessionManager.UserPresent += OnUserDetected;
+                        _sessionManager.UserLogin += OnUserDetected;
+
+                        if (_sessionManager.ConsoleSession != null)
+                        {
+                            Logger.LogDebug($"Waiting for User... (Console: {_sessionManager.ConsoleSession})");
+
+                            if (_sessionManager.ConsoleActive && !_sessionManager.ConsoleLocked)
+                            {
+                                Logger.LogWarning($"Console-Session active and unlocked. Checking on User-Idle-Time!");
+
+                                //= keine Kennworteingabe nach dem Aufwachen
+
+                                _sessionManager.UserPresent += OnUserDetected;
+                            }
+                        }
+                        else
+                        {
+                            Logger.LogDebug($"Waiting for User...");
+
+                            Logger.LogWarning($"Console-Session unknown. Checking on User-Idle-Time!");
+
+                            _sessionManager.UserPresent += OnUserDetected;
+                        }
                     }
 
                     break;

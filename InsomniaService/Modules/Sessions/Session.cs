@@ -69,7 +69,14 @@ namespace MadWizard.Insomnia.Service.Sessions
             if (IsRemoteConnected)
                 connection = "remote";
 
-            return $"Session[id={Id}, name={UserName}, {connection}]";
+            string locked = "";
+            if (IsLocked.HasValue)
+                if (IsLocked.Value)
+                    locked = "Locked";
+                else
+                    locked = "Unlocked";
+
+            return $"Session[id={Id}, name={UserName}, state={ConnectionState}, {connection} {locked}]";
         }
 
         public class SessionSecurity : ISession.ISessionSecurity
