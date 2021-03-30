@@ -14,7 +14,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 {
     class SessionMinion
     {
-        internal const int SERVICE_TIMEOUT = 1000;
+        internal const int SERVICE_TIMEOUT = 100000;
 
         static readonly ProxyGenerator Generator = new ProxyGenerator();
 

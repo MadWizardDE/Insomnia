@@ -27,15 +27,22 @@ using System.Runtime.InteropServices;
 
 namespace MadWizard.Insomnia.Service
 {
-    public class Program
+    public static class Program
     {
         public static void Main(string[] args)
         {
-            var host = CreateHostBuilder(args).Build();
+            try
+            {
+                var host = CreateHostBuilder(args).Build();
 
-            Thread.Sleep(host.Services.GetService<InsomniaConfig>()?.DebugParameters?.StartupDelay ?? 0);
+                Thread.Sleep(host.Services.GetService<InsomniaConfig>()?.DebugParameters?.StartupDelay ?? 0);
 
-            host.Run();
+                host.Run();
+            }
+            catch (Exception e)
+            {
+                File.WriteAllText(@"C:\INSOMNIA_ERROR.log", e.ToString());
+            }
         }
 
         public static IHostBuilder CreateHostBuilder(string[] args) =>
@@ -79,6 +86,15 @@ namespace MadWizard.Insomnia.Service
                         if (config.UserInterface != null)
                         {
                             builder.RegisterModule(new UserInterfaceModule(config.UserInterface));
+                        }
+
+                        if (config.AutoLogout != null)
+                        {
+                            builder.RegisterType<AutoLogout>()
+                                .AttributedPropertiesAutowired()
+                                .AsImplementedInterfaces()
+                                .SingleInstance()
+                                ;
                         }
 
                         builder.RegisterType<LogFileSweeper>().AttributedPropertiesAutowired().AsImplementedInterfaces().SingleInstance();

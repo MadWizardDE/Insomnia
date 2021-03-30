@@ -61,6 +61,11 @@ namespace MadWizard.Insomnia.Service.Sessions
 
         public ISession.ISessionSecurity Security { get; set; }
 
+        public void Logoff()
+        {
+            TSSession.Logoff();
+        }
+
         public override string ToString()
         {
             string connection = "disconnected";

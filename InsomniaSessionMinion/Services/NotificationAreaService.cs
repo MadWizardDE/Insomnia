@@ -197,6 +197,7 @@ namespace MadWizard.Insomnia.Minion.Services
                         {
                             optionItem.Checked = check;
                             optionItem.Click += ContextMenu_OptionClicked;
+                            optionItem.Enabled = option.Authorized;
                         }
                         else
                             optionItem.Enabled = false;

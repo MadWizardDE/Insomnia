@@ -30,10 +30,6 @@ namespace MadWizard.Insomnia.Minion
     {
         static void Main(string[] args)
         {
-            ///* Hilft gegen unscharfe UI-Elemente */
-            //if (Environment.OSVersion.Version.Major >= 6)
-            //    Win32API.SetProcessDPIAware();
-
             IHost host;
             using (MinionBootstrap boot = new MinionBootstrap(args))
             {

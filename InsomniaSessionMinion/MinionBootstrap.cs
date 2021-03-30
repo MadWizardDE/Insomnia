@@ -103,7 +103,7 @@ namespace MadWizard.Insomnia.Minion
 
                 PipeClient.Start();
 
-                Thread.Sleep(1000);
+                Thread.Sleep(500);
 
                 PipeClient.PushMessage(new IncarnationMessage(Process.GetCurrentProcess().Id));
 

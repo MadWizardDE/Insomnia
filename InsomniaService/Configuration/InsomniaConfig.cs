@@ -21,6 +21,7 @@ namespace MadWizard.Insomnia.Configuration
 
         public DebugParameterConfig DebugParameters { get; set; }
 
+        public AutoLogoutConfig AutoLogout { get; set; }
         public UserInterfaceConfig UserInterface { get; set; }
         public SleepWatchConfig SleepWatch { get; set; }
         public RemoteControlConfig RemoteControl { get; set; }
@@ -47,6 +48,24 @@ namespace MadWizard.Insomnia.Configuration
         {
             public string User { get; set; }
             public int? SID { get; set; }
+        }
+    }
+
+    public class AutoLogoutConfig
+    {
+        public AutoLogoutConfig()
+        {
+            User = new Dictionary<string, UserInfo>();
+        }
+
+        public int NotifyTimeout { get; set; } = 0;
+
+        public IDictionary<string, UserInfo> User { get; private set; }
+
+        public class UserInfo
+        {
+            public string Name { get; set; }
+            public int Timeout { get; set; } = 1000;
         }
     }
 
@@ -178,6 +197,7 @@ namespace MadWizard.Insomnia.Configuration
 
             public class ManualOverrideConfig
             {
+                public bool AllowUser { get; set; } = false;
             }
         }
 

@@ -400,7 +400,9 @@ namespace MadWizard.Insomnia.Service.UI
                 {
                     try
                     {
-                        svRef.Service.ShowWakeOption(new WakeOption(WakeOption.SLEEPLESS, overrideSwitch.Enabled)).Wait();
+                        bool authorized = overrideSwitch.IsUserAllowed || svRef.Session.Security.IsPrincipalAdministrator;
+
+                        svRef.Service.ShowWakeOption(new WakeOption(WakeOption.SLEEPLESS, overrideSwitch.Enabled, authorized)).Wait();
                     }
                     catch (Exception e)
                     {

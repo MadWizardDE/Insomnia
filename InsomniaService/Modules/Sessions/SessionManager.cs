@@ -168,7 +168,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             Session consoleSession = (Session)ConsoleSession;
             if (consoleSession != null && Logger.IsEnabled(LogLevel.Debug))
             {
-            string clientUser = consoleSession?.ClientUser;
+                string clientUser = consoleSession?.ClientUser;
 
                 sb.Append("(");
                 sb.Append($"Console: SessionId={consoleSession.Id}, ");
@@ -263,7 +263,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 
                 if (lastIdle != session.IsIdle)
                 {
-                    Logger.LogDebug($"Session<{session.Id}> is not in idle any longer.");
+                    Logger.LogDebug($"Session<{session.Id}>({session.UserName}) is not in idle any longer.");
 
                     _eventUserPresent?.Invoke(this, new SessionEventArgs(session));
                 }
@@ -274,7 +274,7 @@ namespace MadWizard.Insomnia.Service.Sessions
 
                 if (lastIdle != session.IsIdle)
                 {
-                    Logger.LogDebug($"Session<{session.Id}> is in idle (since {message.Time} ms).");
+                    Logger.LogDebug($"Session<{session.Id}>({session.UserName}) is in idle (since {message.Time} ms).");
 
                     _eventUserIdle?.Invoke(this, new SessionEventArgs(session));
                 }
@@ -320,6 +320,18 @@ namespace MadWizard.Insomnia.Service.Sessions
 
                 if (lastError > 0)
                     throw new Win32Exception(lastError);
+            }
+        }
+
+        void ISessionManager.LogoffSession(ISession session)
+        {
+            _tsServer.GetSession(session.Id).Logoff();
+
+            if (_sessions.Remove(session.Id))
+            {
+                Logger.LogInformation(InsomniaEventId.USER_LOGIN, $"User logout: {session.ClientUser} (SID={session.Id})");
+
+                UserLogout?.Invoke(this, new SessionEventArgs(session));
             }
         }
 

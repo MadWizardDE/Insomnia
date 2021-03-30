@@ -1,4 +1,5 @@
-﻿using MadWizard.Insomnia.Service.SleepWatch;
+﻿using MadWizard.Insomnia.Configuration;
+using MadWizard.Insomnia.Service.SleepWatch;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -8,6 +9,16 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
     class ManualOverrideSwitch : ActivityDetector.IDetector
     {
         bool _active = false;
+        bool _allowUser = false;
+
+        public ManualOverrideSwitch(InsomniaConfig config)
+        {
+            var overrideConfig = config.SleepWatch.ActivityDetector.ManualOverride;
+
+            _allowUser = overrideConfig.AllowUser;
+        }
+
+        public bool IsUserAllowed => _allowUser;
 
         public bool Enabled
         {

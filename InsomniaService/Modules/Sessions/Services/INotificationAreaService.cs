@@ -72,14 +72,16 @@ namespace MadWizard.Insomnia.Service.Sessions
             public const string RESOLVE_IP = "IP_RESOLVE";
             public const string SLEEPLESS = "SLEEPLESS";
 
-            public WakeOption(string name, object value)
+            public WakeOption(string name, object value, bool authorized = true)
             {
                 Key = name;
                 Value = value;
+                Authorized = authorized;
             }
 
             public string Key { get; private set; }
             public object Value { get; private set; }
+            public bool Authorized { get; private set; }
         }
 
         [Serializable]
