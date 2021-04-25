@@ -1,12 +1,16 @@
 ﻿using Autofac;
 using MadWizard.Insomnia.Configuration;
 using MadWizard.Insomnia.Service.Sessions;
+using MadWizard.Insomnia.Service.SleepWatch;
+using MadWizard.Insomnia.Service.SleepWatch.Detector;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Timers;
 using static MadWizard.Insomnia.Configuration.AutoLogoutConfig;
+using static MadWizard.Insomnia.Configuration.AutoLogoutConfig.UserInfo;
+using static MadWizard.Insomnia.Configuration.SleepWatchConfig.ActivityDetectorConfig.PowerRequestConfig;
 
 namespace MadWizard.Insomnia.Service
 {
@@ -21,6 +25,7 @@ namespace MadWizard.Insomnia.Service
 
         IDictionary<string, Timer> _idleTimers;
         IDictionary<string, Timer> _notifyTimers;
+        Timer _exceptionTimer;
 
         ILogger<AutoLogout> _logger;
 
@@ -35,10 +40,29 @@ namespace MadWizard.Insomnia.Service
 
             _idleTimers = new Dictionary<string, Timer>();
             _notifyTimers = new Dictionary<string, Timer>();
+            InstallExceptionTimer();
 
             _logger = logger;
 
             _sessionManager = sessionManager;
+        }
+
+        [Autowired]
+        PowerRequestDetector PowerRequestDetector { get; set; }
+
+        private void InstallExceptionTimer()
+        {
+            var shortestTimeout = _notifyTimeSpan;
+
+            foreach (UserInfo userInfo in _config.User.Values)
+                if (userInfo.TimeoutSpan < shortestTimeout)
+                    shortestTimeout = userInfo.TimeoutSpan;
+
+            _exceptionTimer = new Timer();
+            _exceptionTimer.AutoReset = true;
+            _exceptionTimer.Interval = (shortestTimeout / 2).TotalMilliseconds;
+            _exceptionTimer.Elapsed += OnExceptionTimerElapsed;
+            _exceptionTimer.Start();
         }
 
         private void OnUserIdle(object sender, SessionEventArgs e)
@@ -98,64 +122,108 @@ namespace MadWizard.Insomnia.Service
                     "Automatische Abmeldung", $"Sie werden in {timeString} abgemeldet.");
         }
 
-        private void OnNotifyTimerElapsed(object sender, ElapsedEventArgs args)
+        private void OnExceptionTimerElapsed(object sender, ElapsedEventArgs args)
         {
-            foreach (string userName in _notifyTimers.Keys)
+            bool ShouldSuspendLogout(UserInfo user)
             {
-                if (sender == _notifyTimers[userName])
+                foreach (LogoutExceptionInfo exceptionInfo in user.LogoutException.Values)
                 {
-                    _notifyTimers.Remove(userName);
-
-                    ISession session = _sessionManager.FindSessionByUserName(userName);
-
-                    if (session != null)
+                    switch (exceptionInfo.Type)
                     {
-                        notify(session.Id, _notifyTimeSpan);
-                    }
+                        case LogoutExceptionInfo.LogoutExceptionType.REQUEST:
+                            lock (PowerRequestDetector.LastRequests)
+                                foreach (RequestInfo request in PowerRequestDetector.LastRequests)
+                                    if (request.Name.Equals(exceptionInfo.Text))
+                                    {
+                                        _logger.LogInformation($"LogoutException['{exceptionInfo.Name}']: " +
+                                            $"PowerRequest '{request.Name}' present. " +
+                                            $"Suspending logout for {user.Name}.");
 
-                    break;
+                                        return true;
+                                    }
+
+                            break;
+                    }
+                }
+
+                return false;
+            }
+
+            lock (this)
+            {
+                foreach (string userName in _idleTimers.Keys)
+                {
+                    if (ShouldSuspendLogout(_config.User[userName]))
+                    {
+                        RestartTimer(userName);
+                    }
                 }
             }
+        }
+
+        private void OnNotifyTimerElapsed(object sender, ElapsedEventArgs args)
+        {
+            lock (this)
+                foreach (string userName in _notifyTimers.Keys)
+                {
+                    if (sender == _notifyTimers[userName])
+                    {
+                        _notifyTimers.Remove(userName);
+
+                        ISession session = _sessionManager.FindSessionByUserName(userName);
+
+                        if (session != null)
+                        {
+                            notify(session.Id, _notifyTimeSpan);
+                        }
+
+                        break;
+                    }
+                }
         }
 
         private void OnIdleTimerElapsed(object sender, ElapsedEventArgs args)
         {
-            foreach (string userName in _idleTimers.Keys)
-            {
-                if (sender == _idleTimers[userName])
+            lock (this)
+                foreach (string userName in _idleTimers.Keys)
                 {
-                    StopTimer(userName, true);
-
-                    ISession session = _sessionManager.FindSessionByUserName(userName);
-
-                    if (session != null)
+                    if (sender == _idleTimers[userName])
                     {
-                        _logger.LogWarning($"Logging out {session} after {_config.User[userName].Timeout} ms.");
+                        StopTimer(userName, true);
 
-                        _sessionManager.LogoffSession(session);
+                        ISession session = _sessionManager.FindSessionByUserName(userName);
+
+                        if (session != null)
+                        {
+                            _logger.LogWarning($"Logging out {session} after {_config.User[userName].Timeout} ms.");
+
+                            _sessionManager.LogoffSession(session);
+                        }
+
+                        break;
                     }
-
-                    break;
                 }
-            }
         }
 
         private void OnUserPresent(object sender, SessionEventArgs e)
         {
-            bool hasNotifyTimer = _notifyTimers.ContainsKey(e.Session.UserName);
-
-            if (StopTimer(e.Session.UserName) && !hasNotifyTimer)
+            lock (this)
             {
-                _sessionNotifyService.SelectSession(e.Session.Id)
-                    .ShowNotificationAsync(
-                        INotificationAreaService.NotifyMessageType.Info,
-                        "Automatische Abmeldung", $"Sie bleiben angemeldet.");
+                bool hasNotifyTimer = _notifyTimers.ContainsKey(e.Session.UserName);
+
+                if (StopTimer(e.Session.UserName) && !hasNotifyTimer)
+                {
+                    _sessionNotifyService.SelectSession(e.Session.Id)
+                        .ShowNotificationAsync(
+                            INotificationAreaService.NotifyMessageType.Info,
+                            "Automatische Abmeldung", $"Sie bleiben angemeldet.");
+                }
             }
         }
 
         private void StartTimer(string userName, int timeout)
         {
-            lock (_idleTimers)
+            lock (this)
             {
                 if (_idleTimers.ContainsKey(userName))
                     return;
@@ -172,9 +240,24 @@ namespace MadWizard.Insomnia.Service
             }
         }
 
+        private void RestartTimer(string userName)
+        {
+            if (_idleTimers.TryGetValue(userName, out Timer idleTimer))
+            {
+                idleTimer.Stop();
+                idleTimer.Start();
+            }
+
+            if (_notifyTimers.TryGetValue(userName, out Timer notifyTimer))
+            {
+                notifyTimer.Stop();
+                notifyTimer.Start();
+            }
+        }
+
         private bool StopTimer(string userName, bool elapsed = false)
         {
-            lock (_idleTimers)
+            lock (this)
                 if (_idleTimers.TryGetValue(userName, out Timer idleTimer))
                 {
                     idleTimer.Stop();

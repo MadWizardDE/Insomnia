@@ -46,6 +46,7 @@ namespace MadWizard.Insomnia.Service.SleepWatch
                     .AttributedPropertiesAutowired()
                     .AsImplementedInterfaces()
                     .SingleInstance()
+                    .AsSelf()
                     ;
                 if (_config.ActivityDetector.RemoteDesktopConnection != null)
                     builder.RegisterType<RemoteDesktopDetector>()

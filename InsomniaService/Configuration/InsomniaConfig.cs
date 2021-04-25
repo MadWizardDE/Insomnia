@@ -64,9 +64,30 @@ namespace MadWizard.Insomnia.Configuration
 
         public class UserInfo
         {
+            public UserInfo()
+            {
+                LogoutException = new Dictionary<string, LogoutExceptionInfo>();
+            }
+
             public string Name { get; set; }
             public int Timeout { get; set; } = 1000;
+            public TimeSpan TimeoutSpan => TimeSpan.FromMilliseconds(Timeout);
+
+            public IDictionary<string, LogoutExceptionInfo> LogoutException { get; private set; }
+
+            public class LogoutExceptionInfo
+            {
+                public string Name { get; set; }
+                public LogoutExceptionType Type { get; set; }
+                public string Text { get; set; }
+
+                public enum LogoutExceptionType
+                {
+                    REQUEST
+                }
+            }
         }
+
     }
 
     public class UserInterfaceConfig

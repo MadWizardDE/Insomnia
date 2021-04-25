@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 
 using static MadWizard.Insomnia.Configuration.SleepWatchConfig.ActivityDetectorConfig;
+using static MadWizard.Insomnia.Configuration.SleepWatchConfig.ActivityDetectorConfig.PowerRequestConfig;
 
 namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 {
@@ -15,9 +16,13 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
     {
         PowerRequestConfig _config;
 
+        IList<RequestInfo> _lastRequests;
+
         public PowerRequestDetector(InsomniaConfig config, SleepLogWriter logWriter = null)
         {
             _config = config.SleepWatch.ActivityDetector.PowerRequests;
+
+            _lastRequests = new List<RequestInfo>();
 
             RequestsDir = new DirectoryInfo(Path.Combine(logWriter.LogsDir.FullName, "requests"));
         }
@@ -26,6 +31,8 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
         ILogger<PowerRequestDetector> Logger { get; set; }
 
         public DirectoryInfo RequestsDir { get; private set; }
+
+        public IEnumerable<RequestInfo> LastRequests => _lastRequests;
 
         #region Interface-Implementations
         DirectoryInfo LogFileSweeper.ISweepable.WatchDirectory => RequestsDir;
@@ -36,10 +43,19 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 
             string output = QueryPowerRequests();
 
-            foreach (var requestInfo in _config.Request.Values)
-                foreach (string keyWord in requestInfo.Strings)
-                    if (output.IndexOf(keyWord, StringComparison.InvariantCultureIgnoreCase) >= 0)
-                        tokenList.Add($"(({requestInfo.Name}))");
+            lock (_lastRequests)
+            {
+                _lastRequests.Clear();
+
+                foreach (var requestInfo in _config.Request.Values)
+                    foreach (string keyWord in requestInfo.Strings)
+                        if (output.IndexOf(keyWord, StringComparison.InvariantCultureIgnoreCase) >= 0)
+                        {
+                            tokenList.Add($"(({requestInfo.Name}))");
+
+                            _lastRequests.Add(requestInfo);
+                        }
+            }
 
             return (tokenList.ToArray(), (_config?.KeepAwake ?? false) ? tokenList.Count > 0 : false);
         }
