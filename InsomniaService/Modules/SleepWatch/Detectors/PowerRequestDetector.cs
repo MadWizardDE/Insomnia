@@ -32,10 +32,20 @@ namespace MadWizard.Insomnia.Service.SleepWatch.Detector
 
         public DirectoryInfo RequestsDir { get; private set; }
 
-        public IEnumerable<RequestInfo> LastRequests => _lastRequests;
-
         #region Interface-Implementations
         DirectoryInfo LogFileSweeper.ISweepable.WatchDirectory => RequestsDir;
+
+        public bool HasRequest(string name)
+        {
+            lock (_lastRequests)
+            {
+                foreach (RequestInfo request in _lastRequests)
+                    if (request.Name.Equals(name))
+                        return true;
+
+                return false;
+            }
+        }
 
         (string[] tokens, bool busy) ActivityDetector.IDetector.Scan()
         {

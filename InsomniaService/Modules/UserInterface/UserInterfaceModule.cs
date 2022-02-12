@@ -27,7 +27,7 @@ namespace MadWizard.Insomnia.Service.UI
                     ;
             }
 
-            if (_config.WindowCleaner != null)
+            if (_config.WindowManager != null)
             {
                 builder.RegisterType<WindowController>()
                     .AttributedPropertiesAutowired()

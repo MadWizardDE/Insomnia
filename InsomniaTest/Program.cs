@@ -3,6 +3,7 @@ using Castle.DynamicProxy;
 using MadWizard.Insomnia;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.DirectoryServices.AccountManagement;
 using System.IO;
@@ -13,56 +14,80 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Security;
 using System.Security.Claims;
 using System.Security.Principal;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace InsomniaTest
 {
     class Program
     {
-        struct Number
-        {
-            public int A;
-        }
-
         static async Task Main(string[] args)
         {
-            Number? number = null;
+            //PerformanceCounter myAppCpu =
+            //new PerformanceCounter(
+            //    "Process", "% Processor Time", "OUTLOOK", true);
 
-            if (number?.A > 4)
-                Console.WriteLine("Hallo");
+            //var proc = Process.GetProcessesByName("steam").First();
+            //var proc = Process.GetProcessById(10684);
+
+            var proc = Process.GetProcessById(0);
+
+            try
+            {
+                throw new InvalidOperationException();
+                //var handle = proc.Handle;
+            }
+            catch (Win32Exception e) when (e.NativeErrorCode == 5)
+            {
+                Console.WriteLine("Zugriff verweigert"); // Zugriff verweigert
+            }
+            catch (SystemException e) when (e is ArgumentException || e is InvalidOperationException)
+            {
+                Console.WriteLine("caught");
+            }
+
+
+
+            //foreach (var p in Process.GetProcesses())
+            //{
+            //    try
+            //    {
+            //        var handle = p.Handle;
+            //    }
+            //    catch (Exception e)
+            //    {
+            //        Console.WriteLine(p.ProcessName + "@" + p.Id);
+            //        Console.WriteLine(e.Message);
+            //    }
+            //}
 
             Console.ReadKey();
 
-            //TestCassia();
-            TestPrincipal(@"Kevin");
-            TestPrincipal(@"KEVINS-PC\Johannes");
-            Console.ReadKey();
+            //Console.WriteLine("Parent: " + ParentProcessUtilities.GetParentProcess(proc.Id)?.ProcessName);
 
+            //Console.WriteLine("Press the any key to stop...\n");
+            //while (!Console.KeyAvailable)
+            //{
+            //    //double pct = myAppCpu.NextValue();
+            //    double pct = await GetCpuUsageForProcess(proc);
+            //    Console.WriteLine("OUTLOOK'S CPU % = " + pct);
+            //    Thread.Sleep(250);
+            //}
 
-            TestProcess();
+        }
 
-            new TestNetwork().Test();
-            //new TestGeneric().Test();
+        private static async Task<double> GetCpuUsageForProcess(Process proc)
+        {
+            var startTime = DateTime.UtcNow;
+            var startCpuUsage = proc.TotalProcessorTime;
+            await Task.Delay(5000);
 
-            Environment.Exit(0);
-
-            //await TestProxy();
-
-            IDictionary<string, object> dict = new Dictionary<string, object>();
-
-            object obj = "objekt";
-
-            dict.Add("test", obj);
-
-            if (dict.ContainsKey("test"))
-                Console.WriteLine("test contained");
-
-            dict.Values.Remove(obj);
-
-            if (dict.ContainsKey("test"))
-                Console.WriteLine("test contained");
-
-            //Console.ReadKey();
+            var endTime = DateTime.UtcNow;
+            var endCpuUsage = proc.TotalProcessorTime;
+            var cpuUsedMs = (endCpuUsage - startCpuUsage).TotalMilliseconds;
+            var totalMsPassed = (endTime - startTime).TotalMilliseconds;
+            var cpuUsageTotal = cpuUsedMs / (Environment.ProcessorCount * totalMsPassed);
+            return cpuUsageTotal * 100;
         }
 
         static void TestPrincipal(string user)

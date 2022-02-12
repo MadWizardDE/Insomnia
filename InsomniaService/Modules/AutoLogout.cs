@@ -49,6 +49,8 @@ namespace MadWizard.Insomnia.Service
 
         [Autowired]
         PowerRequestDetector PowerRequestDetector { get; set; }
+        [Autowired]
+        ProcessActivity ProcessActivity { get; set; }
 
         private void InstallExceptionTimer()
         {
@@ -126,22 +128,34 @@ namespace MadWizard.Insomnia.Service
         {
             bool ShouldSuspendLogout(UserInfo user)
             {
+                var userSession = _sessionManager.FindSessionByUserName(user.Name);
+
                 foreach (LogoutExceptionInfo exceptionInfo in user.LogoutException.Values)
                 {
                     switch (exceptionInfo.Type)
                     {
                         case LogoutExceptionInfo.LogoutExceptionType.REQUEST:
-                            lock (PowerRequestDetector.LastRequests)
-                                foreach (RequestInfo request in PowerRequestDetector.LastRequests)
-                                    if (request.Name.Equals(exceptionInfo.Text))
-                                    {
-                                        _logger.LogInformation($"LogoutException['{exceptionInfo.Name}']: " +
-                                            $"PowerRequest '{request.Name}' present. " +
-                                            $"Suspending logout for {user.Name}.");
+                            var requestName = exceptionInfo.Text;
+                            if (PowerRequestDetector.HasRequest(requestName))
+                            {
+                                _logger.LogInformation($"LogoutException['{exceptionInfo.Name}']: " +
+                                    $"PowerRequest '{requestName}' present. " +
+                                    $"Suspending logout for {user.Name}.");
 
-                                        return true;
-                                    }
+                                return true;
+                            }
+                            break;
 
+                        case LogoutExceptionInfo.LogoutExceptionType.PROCESS:
+                            var processName = exceptionInfo.Text;
+                            if (ProcessActivity.HasActivity(userSession?.Id ?? 0, processName))
+                            {
+                                _logger.LogInformation($"LogoutException['{exceptionInfo.Name}']: " +
+                                    $"Process '{processName}' active. " +
+                                    $"Suspending logout for {user.Name}.");
+
+                                return true;
+                            }
                             break;
                     }
                 }

@@ -189,22 +189,6 @@ namespace MadWizard.Insomnia.Service.Sessions
 
             string clientUser = session.ClientUser;
 
-            if (Logger.IsEnabled(LogLevel.Debug))
-            {
-                var sb = new StringBuilder();
-                sb.Append($"SessionChange: SessionId={desc.SessionId}, Reason={desc.Reason}");
-
-                sb.Append("(");
-                if (clientUser.Length > 0)
-                    sb.Append($"User={clientUser}, ");
-                sb.Append($"State={session.ConnectionState}");
-                if (session.ConnectionState == ConnectionState.Active)
-                    sb.Append($"|{(session.IsLocked.HasValue ? (session.IsLocked.Value ? "Locked" : "Unlocked") : "")}");
-                sb.Append(")");
-
-                Logger.LogDebug(InsomniaEventId.SESSION_CHANGE_INFO, sb.ToString());
-            }
-
             if (session.IsUserSession)
             {
                 (session.Security as Session.SessionSecurity).Impersonate(null, TimeSpan.FromSeconds(5));
@@ -247,6 +231,22 @@ namespace MadWizard.Insomnia.Service.Sessions
 
                     UserLogout?.Invoke(this, new SessionEventArgs(session));
                 }
+            }
+
+            if (Logger.IsEnabled(LogLevel.Debug))
+            {
+                var sb = new StringBuilder();
+                sb.Append($"SessionChange: SessionId={desc.SessionId}, Reason={desc.Reason}");
+
+                sb.Append("(");
+                if (clientUser.Length > 0)
+                    sb.Append($"User={clientUser}, ");
+                sb.Append($"State={session.ConnectionState}");
+                if (session.ConnectionState == ConnectionState.Active)
+                    sb.Append($"|{(session.IsLocked.HasValue ? (session.IsLocked.Value ? "Locked" : "Unlocked") : "")}");
+                sb.Append(")");
+
+                Logger.LogDebug(InsomniaEventId.SESSION_CHANGE_INFO, sb.ToString());
             }
         }
         void ISessionMessageHandler<UserIdleTimeMessage>.Handle(ISession s, UserIdleTimeMessage message)

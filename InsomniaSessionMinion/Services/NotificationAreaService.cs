@@ -1,18 +1,16 @@
-﻿using MadWizard.Insomnia.Service.Sessions;
-using MadWizard.Insomnia.Minion.Properties;
+﻿using MadWizard.Insomnia.Minion.Properties;
+using MadWizard.Insomnia.Service;
+using MadWizard.Insomnia.Service.Sessions;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Text;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using wyDay.Controls;
-
 using static MadWizard.Insomnia.Service.Sessions.INotificationAreaService;
-using Microsoft.Extensions.Logging;
-using MadWizard.Insomnia.Service;
 
 namespace MadWizard.Insomnia.Minion.Services
 {
@@ -24,7 +22,7 @@ namespace MadWizard.Insomnia.Minion.Services
         IUserMessenger _userMessenger;
 
         NotifyIcon _notifyIcon;
-        VistaMenu _vistaMenu;
+        //VistaMenu _vistaMenu;
 
         bool _moonriseCommander;
         IDictionary<int, UserInfo> _connectUsers;
@@ -83,37 +81,40 @@ namespace MadWizard.Insomnia.Minion.Services
             }
 
             _notifyIcon.DoubleClick -= NotifyIcon_DoubleClick;
-            _notifyIcon.ContextMenu?.Dispose();
+            _notifyIcon.ContextMenuStrip?.Dispose();
             _notifyIcon.Icon = TrayIcon;
 
             if (_connectUsers.Count > 0 || _wakeTargets.Count > 0 || _moonriseCommander)
             {
-                _vistaMenu = new VistaMenu();
+                //_vistaMenu = new VistaMenu();
 
-                _notifyIcon.ContextMenu = new ContextMenu();
+                _notifyIcon.ContextMenuStrip = new ContextMenuStrip();
 
-                if (_moonriseCommander)
-                {
-                    MenuItem commander = new MenuItem("Moonrise Commander");
-                    _vistaMenu.SetImage(commander, new Bitmap(Resources.Moonrise, new Size(16, 16)));
-                    commander.DefaultItem = true;
-                    commander.Click += ContextMenu_MoonriseCommanderClicked;
-                    _notifyIcon.ContextMenu.MenuItems.Add(commander);
+                //if (_moonriseCommander)
+                //{
+                //    MenuItem commander = new MenuItem("Moonrise Commander");
+                //    _vistaMenu.SetImage(commander, new Bitmap(Resources.Moonrise, new Size(16, 16)));
+                //    commander.DefaultItem = true;
+                //    commander.Click += ContextMenu_MoonriseCommanderClicked;
+                //    _notifyIcon.ContextMenu.MenuItems.Add(commander);
 
-                    _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
+                //    _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
 
-                    _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
-                }
+                //    _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
+                //}
 
                 if (_connectUsers.Count > 0)
                 {
-                    if (_notifyIcon.ContextMenu.MenuItems.Count > 0)
+                    if (_notifyIcon.ContextMenuStrip.Items.Count > 0)
                         //if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Text != "-")
-                        _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator hinzufügen (wenn nicht schon vorhanden)
+                        _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator()); // Seperator hinzufügen (wenn nicht schon vorhanden)
 
-                    MenuItem consoleSessions = new MenuItem("Konsolen-Sitzung");
+                    ToolStripMenuItem consoleSessions = new ToolStripMenuItem("Konsolen-Sitzung")
+                    {
+                        Image = new Bitmap(Resources.Monitor64, new Size(16, 16))
+                    };
 
-                    _vistaMenu.SetImage(consoleSessions, new Bitmap(Resources.Monitor64, new Size(16, 16)));
+                    //_vistaMenu.SetImage(consoleSessions, new Bitmap(Resources.Monitor64, new Size(16, 16)));
 
                     foreach (UserInfo user in _connectUsers.Values)
                     {
@@ -122,22 +123,24 @@ namespace MadWizard.Insomnia.Minion.Services
                             _userMessenger.SendMessage(new ConnectToConsoleMessage(user));
                         }
 
-                        MenuItem userItem = new MenuItem(user.Name);
+                        ToolStripMenuItem userItem = new ToolStripMenuItem(user.Name);
                         userItem.Enabled = user.AllowConnectToConsole;
                         userItem.Checked = user.IsConsoleConnected;
                         if (!user.IsConsoleConnected)
                             userItem.Click += ContextMenu_ConsoleSessionClicked;
-                        consoleSessions.MenuItems.Add(userItem);
+                        consoleSessions.DropDownItems.Add(userItem);
                     }
 
-                    _notifyIcon.ContextMenu.MenuItems.Add(consoleSessions);
+                    _notifyIcon.ContextMenuStrip.Items.Add(consoleSessions);
 
                     if (_connectUsers.Values.Where(u => u.AllowConnectToRemote).Count() > 0)
                     {
-                        MenuItem remoteSessions = new MenuItem("Remote-Sitzung");
-                        remoteSessions.Enabled = false; // TODO 
+                        ToolStripMenuItem remoteSessions = new ToolStripMenuItem("Remote-Sitzung")
+                        {
+                            Image = new Bitmap(Resources.UserSide32, new Size(16, 16))
+                        };
 
-                        _vistaMenu.SetImage(remoteSessions, new Bitmap(Resources.UserSide32, new Size(16, 16)));
+                        remoteSessions.Enabled = false; // TODO 
 
                         foreach (UserInfo user in _connectUsers.Values.Where(u => u.AllowConnectToRemote))
                         {
@@ -146,12 +149,12 @@ namespace MadWizard.Insomnia.Minion.Services
                                 _userMessenger.SendMessage(new ConnectToRemoteMessage(user));
                             }
 
-                            MenuItem userItem = new MenuItem(user.Name);
+                            ToolStripMenuItem userItem = new ToolStripMenuItem(user.Name);
                             userItem.Click += ContextMenu_RemoteSessionClicked;
-                            remoteSessions.MenuItems.Add(userItem);
+                            remoteSessions.DropDownItems.Add(userItem);
                         }
 
-                        _notifyIcon.ContextMenu.MenuItems.Add(remoteSessions);
+                        _notifyIcon.ContextMenuStrip.Items.Add(remoteSessions);
                     }
                 }
 
@@ -165,9 +168,9 @@ namespace MadWizard.Insomnia.Minion.Services
 
                 if (_wakeOptions.Count > 0)
                 {
-                    _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator
+                    _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator()); // Seperator
 
-                    MenuItem menuOptions = new MenuItem("Optionen");
+                    ToolStripMenuItem menuOptions = new ToolStripMenuItem("Optionen");
 
                     foreach (WakeOption option in _wakeOptions.Values)
                     {
@@ -192,7 +195,7 @@ namespace MadWizard.Insomnia.Minion.Services
                             }
                         }
 
-                        MenuItem optionItem = new MenuItem(ToLabel(option));
+                        ToolStripMenuItem optionItem = new ToolStripMenuItem(ToLabel(option));
                         if (option.Value is bool check)
                         {
                             optionItem.Checked = check;
@@ -202,33 +205,26 @@ namespace MadWizard.Insomnia.Minion.Services
                         else
                             optionItem.Enabled = false;
 
-                        menuOptions.MenuItems.Add(optionItem);
+                        menuOptions.DropDownItems.Add(optionItem);
                     }
 
-                    _notifyIcon.ContextMenu.MenuItems.Add(menuOptions);
+                    _notifyIcon.ContextMenuStrip.Items.Add(menuOptions);
                 }
 
-                ((System.ComponentModel.ISupportInitialize)(_vistaMenu)).EndInit();
-
-                if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Text == "-")
-                    _notifyIcon.ContextMenu.MenuItems.RemoveAt(_notifyIcon.ContextMenu.MenuItems.Count - 1);
+                if (_notifyIcon.ContextMenuStrip.Items[_notifyIcon.ContextMenuStrip.Items.Count - 1] is ToolStripSeparator)
+                    _notifyIcon.ContextMenuStrip.Items.RemoveAt(_notifyIcon.ContextMenuStrip.Items.Count - 1);
 
                 void AddWakeGroup(IEnumerable<WakeTarget> targets)
                 {
-                    if (_notifyIcon.ContextMenu.MenuItems.Count > 0)
-                        if (_notifyIcon.ContextMenu.MenuItems[_notifyIcon.ContextMenu.MenuItems.Count - 1].Name != "-")
-                            _notifyIcon.ContextMenu.MenuItems.Add("-"); // Seperator hinzufügen (wenn nicht schon vorhanden)
+                    if (_notifyIcon.ContextMenuStrip.Items.Count > 0)
+                        if (!(_notifyIcon.ContextMenuStrip.Items[_notifyIcon.ContextMenuStrip.Items.Count - 1] is ToolStripSeparator))
+                            _notifyIcon.ContextMenuStrip.Items.Add(new ToolStripSeparator()); // Seperator hinzufügen (wenn nicht schon vorhanden)
 
                     NetworkType networkType = targets.Select(t => t.NetworkType).Distinct().Single();
                     string networkName = targets.Select(t => t.NetworkName).Distinct().Single();
 
                     if (networkName != "")
                     {
-                        MenuItem header = new MenuItem(networkName)
-                        {
-                            Enabled = false
-                        };
-
                         Bitmap networkIcon = networkType switch
                         {
                             NetworkType.Wired => Resources.Wired,
@@ -237,62 +233,73 @@ namespace MadWizard.Insomnia.Minion.Services
                             _ => Resources.Unknown
                         };
 
-                        _vistaMenu.SetImage(header, new Bitmap(networkIcon, new Size(16, 16)));
+                        ToolStripMenuItem header = new ToolStripMenuItem(networkName)
+                        {
+                            Enabled = false,
+                            Image = new Bitmap(networkIcon, new Size(16, 16))
+                        };
 
-                        _notifyIcon.ContextMenu.MenuItems.Add(header);
+
+                        _notifyIcon.ContextMenuStrip.Items.Add(header);
                     }
 
                     foreach (WakeTarget target in targets)
                     {
                         void ContextMenu_TargetClicked(object sender, EventArgs args)
                         {
-                            WakeTarget target = (WakeTarget)(sender as MenuItem).Tag;
+                            WakeTarget target = (WakeTarget)(sender as ToolStripMenuItem).Tag;
 
                             _userMessenger.SendMessage(new ConfigureWakeOnLANMessage(new WakeTarget { Name = target.Name, NetworkName = target.NetworkName, SelectedMode = !(bool)target.SelectedMode }));
                         }
                         void ContextMenu_ModeClicked(object sender, EventArgs args)
                         {
-                            string mode = (sender as MenuItem).Tag as string;
+                            string mode = (sender as ToolStripMenuItem).Tag as string;
 
                             if ((string)target.SelectedMode != mode)
                                 _userMessenger.SendMessage(new ConfigureWakeOnLANMessage(new WakeTarget { Name = target.Name, SelectedMode = mode }));
                         }
 
-                        MenuItem item = new MenuItem(target.Name);
-
+                        ToolStripItem item;
                         if (target.SelectedMode is bool enabled)
                         {
-                            item.Tag = target;
-                            item.Checked = enabled;
-                            item.Enabled = target.AvailableModes.Contains(!enabled);
-                            item.Click += ContextMenu_TargetClicked;
+                            ToolStripMenuItem button = new ToolStripMenuItem(target.Name);
+
+                            button.Tag = target;
+                            button.Checked = enabled;
+                            button.Enabled = target.AvailableModes.Contains(!enabled);
+                            button.Click += ContextMenu_TargetClicked;
+                            item = button;
                         }
                         else if (target.SelectedMode is string selectedMode)
                         {
+                            ToolStripMenuItem menu = new ToolStripMenuItem(target.Name);
+
                             foreach (string mode in target.AvailableModes)
                             {
-                                MenuItem itemOption = new MenuItem(mode.ToUpper()); // TODO Name
+                                ToolStripMenuItem itemOption = new ToolStripMenuItem(mode.ToUpper()); // TODO Name
                                 itemOption.Tag = mode;
                                 itemOption.Checked = mode == selectedMode;
                                 itemOption.Click += ContextMenu_ModeClicked;
 
                                 // TODO Icon
 
-                                item.MenuItems.Add(itemOption);
+                                menu.DropDownItems.Add(itemOption);
                             }
+
+                            item = menu;
                         }
                         else
                             throw new ArgumentException($"Unrecognized Option = {target.SelectedMode}");
 
-                        _notifyIcon.ContextMenu.MenuItems.Add(item);
+                        _notifyIcon.ContextMenuStrip.Items.Add(item);
                     }
                 }
             }
         }
         private void DestroyTrayIcon()
         {
-            _vistaMenu?.Dispose();
-            _vistaMenu = null;
+            //_vistaMenu?.Dispose();
+            //_vistaMenu = null;
 
             if (_notifyIcon != null)
             {

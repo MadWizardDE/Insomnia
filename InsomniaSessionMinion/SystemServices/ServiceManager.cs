@@ -34,7 +34,7 @@ namespace MadWizard.Insomnia.Minion
         [Autowired]
         ILogger<ServiceManager> Logger { get; set; }
 
-        void IServiceMessageHandler.HandleMessage(ServiceMessage message)
+        async void IServiceMessageHandler.HandleMessage(ServiceMessage message)
         {
             try
             {
@@ -64,7 +64,7 @@ namespace MadWizard.Insomnia.Minion
 
                         try
                         {
-                            object result = service.HandleInvocation(invocation.Method, invocation.Arguments);
+                            object result = await service.HandleInvocation(invocation.Method, invocation.Arguments);
 
                             _messenger.SendMessage(new ServiceInvocationResultMessage(message.ServiceType, invocation.Id, returnValue: result));
                         }
@@ -145,7 +145,7 @@ namespace MadWizard.Insomnia.Minion
                 }
             }
 
-            public object HandleInvocation(MethodInfo method, object[] parameters)
+            public async Task<object> HandleInvocation(MethodInfo method, object[] parameters)
             {
                 object obj = _serviceScope.Resolve(_serviceType);
 
@@ -153,6 +153,8 @@ namespace MadWizard.Insomnia.Minion
 
                 if (result is Task task)
                 {
+                    await task;
+
                     if (method.ReturnType.IsGenericType)
                     {
                         var property = task.GetType().GetProperty("Result", BindingFlags.Public | BindingFlags.Instance);

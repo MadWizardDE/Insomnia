@@ -3,8 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MadWizard.Insomnia.Configuration
 {
@@ -83,7 +81,8 @@ namespace MadWizard.Insomnia.Configuration
 
                 public enum LogoutExceptionType
                 {
-                    REQUEST
+                    REQUEST,
+                    PROCESS
                 }
             }
         }
@@ -94,7 +93,7 @@ namespace MadWizard.Insomnia.Configuration
     {
         public TrayMenuConfig TrayMenu { get; set; }
         public MoonriseCommanderConfig MoonriseCommander { get; set; }
-        public WindowCleanerConfig WindowCleaner { get; set; }
+        public WindowManagerConfig WindowManager { get; set; }
 
         public class TrayMenuConfig
         {
@@ -119,23 +118,34 @@ namespace MadWizard.Insomnia.Configuration
 
         }
 
-        public class WindowCleanerConfig
+        public class WindowManagerConfig
         {
-            public WindowCleanerConfig()
+            public WindowManagerConfig()
             {
-                TitlePattern = new Dictionary<string, WindowTitlePattern>();
+                CloseWindow = new Dictionary<string, CloseWindowConfig>();
+                RestartProcess = new Dictionary<string, RestartProcessConfig>();
             }
 
             public int WaitTime { get; set; } = 2000;
 
-            public IDictionary<string, WindowTitlePattern> TitlePattern { get; private set; }
+            public IDictionary<string, CloseWindowConfig> CloseWindow { get; private set; }
+            public IDictionary<string, RestartProcessConfig> RestartProcess { get; private set; }
 
-            public class WindowTitlePattern
+            public class CloseWindowConfig
             {
                 public string Name { get; set; }
 
-                public string Text { get; set; }
+                public string Title { get; set; }
             }
+
+            public class RestartProcessConfig
+            {
+                public string Name { get; set; }
+
+                public int After { get; set; }
+                public int Timeout { get; set; } = 0;
+            }
+
         }
     }
 
@@ -148,6 +158,7 @@ namespace MadWizard.Insomnia.Configuration
         public ActivityDetectorConfig ActivityDetector { get; set; }
         public NetworkCommanderConfig NetworkCommander { get; set; }
         public AntiSleepWalkConfig AntiSleepWalk { get; set; }
+        public AntiGhostConfig AntiGhost { get; set; }
 
         public enum SuspendState
         {
@@ -162,6 +173,7 @@ namespace MadWizard.Insomnia.Configuration
 
             public PingHostConfig PingHost { get; set; }
             public PowerRequestConfig PowerRequests { get; set; }
+            public ProcessActivityConfig ProcessActivity { get; set; }
             public RemoteDesktopConnectionConfig RemoteDesktopConnection { get; set; }
             public UserIdleConfig UserIdle { get; set; }
             public WakeOnLANConfig WakeOnLAN { get; set; }
@@ -181,6 +193,29 @@ namespace MadWizard.Insomnia.Configuration
                     public string Name { get; set; }
                 }
             }
+
+            public class ProcessActivityConfig
+            {
+
+                public ProcessActivityConfig()
+                {
+                    Process = new Dictionary<string, ProcessInfo>();
+                }
+
+                public IDictionary<string, ProcessInfo> Process { get; private set; }
+
+                public class ProcessInfo
+                {
+                    public string Name { get; set; }
+                    public string ProcessName => Text;
+
+                    public double Threshold { get; set; }
+                    public bool WithChildren { get; set; }
+
+                    private string Text { get; set; }
+                }
+            }
+
 
             public class PowerRequestConfig
             {
@@ -325,6 +360,10 @@ namespace MadWizard.Insomnia.Configuration
         }
 
         public class AntiSleepWalkConfig
+        {
+        }
+
+        public class AntiGhostConfig
         {
         }
     }
