@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
@@ -133,25 +134,41 @@ namespace MadWizard.Insomnia.Minion.Services
 
                     _notifyIcon.ContextMenuStrip.Items.Add(consoleSessions);
 
-                    if (_connectUsers.Values.Where(u => u.AllowConnectToRemote).Count() > 0)
+                    if (_connectUsers.Values.Where(u => u.IsRemoteConnected).Count() > 0)
                     {
                         ToolStripMenuItem remoteSessions = new ToolStripMenuItem("Remote-Sitzung")
                         {
                             Image = new Bitmap(Resources.UserSide32, new Size(16, 16))
                         };
 
-                        remoteSessions.Enabled = false; // TODO 
+                        var sid = Process.GetCurrentProcess().SessionId;
 
-                        foreach (UserInfo user in _connectUsers.Values.Where(u => u.AllowConnectToRemote))
+                        foreach (UserInfo user in _connectUsers.Values.Where(u => u.IsRemoteConnected))
                         {
-                            void ContextMenu_RemoteSessionClicked(object sender, EventArgs args)
-                            {
-                                _userMessenger.SendMessage(new ConnectToRemoteMessage(user));
-                            }
+                            //void ContextMenu_RemoteSessionClicked(object sender, EventArgs args)
+                            //{
+                            //    _userMessenger.SendMessage(new ConnectToRemoteMessage(user));
+                            //}
 
                             ToolStripMenuItem userItem = new ToolStripMenuItem(user.Name);
-                            userItem.Click += ContextMenu_RemoteSessionClicked;
+                            userItem.Checked = user.SID == sid;
+                            userItem.Enabled = false;
+                            //userItem.Click += ContextMenu_RemoteSessionClicked;
                             remoteSessions.DropDownItems.Add(userItem);
+                        }
+
+                        foreach (UserInfo user in _connectUsers.Values.Where(u => u.IsRemoteConnected && u.SID == sid))
+                        {
+                            void ContextMenu_DisconnectRemoteSessionClicked(object sender, EventArgs args)
+                            {
+                                _userMessenger.SendMessage(new DisconnectSessionMessage(user));
+                            }
+
+                            remoteSessions.DropDownItems.Add(new ToolStripSeparator());
+
+                            ToolStripMenuItem disconnectItem = new ToolStripMenuItem("Trennen");
+                            disconnectItem.Click += ContextMenu_DisconnectRemoteSessionClicked;
+                            remoteSessions.DropDownItems.Add(disconnectItem);
                         }
 
                         _notifyIcon.ContextMenuStrip.Items.Add(remoteSessions);

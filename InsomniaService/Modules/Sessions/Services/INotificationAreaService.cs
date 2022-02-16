@@ -32,6 +32,7 @@ namespace MadWizard.Insomnia.Service.Sessions
                 SID = sid;
                 Name = name;
                 IsConsoleConnected = console;
+                IsRemoteConnected = false;
 
                 AllowConnectToConsole = false;
                 AllowConnectToRemote = false;
@@ -40,6 +41,7 @@ namespace MadWizard.Insomnia.Service.Sessions
             public int SID { get; set; }
             public string Name { get; set; }
             public bool IsConsoleConnected { get; set; }
+            public bool IsRemoteConnected { get; set; }
 
             public bool AllowConnectToConsole { get; internal set; }
             public bool AllowConnectToRemote { get; internal set; }

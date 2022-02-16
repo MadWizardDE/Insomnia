@@ -323,6 +323,19 @@ namespace MadWizard.Insomnia.Service.Sessions
             }
         }
 
+        void ISessionManager.DisconnectSession(ISession session)
+        {
+            int sessionID = session.Id;
+
+            if (!WTSDisconnectSession(this._tsServer.Handle.Handle, (UInt32)sessionID, false))
+            {
+                int lastError = Marshal.GetLastWin32Error();
+
+                if (lastError > 0)
+                    throw new Win32Exception(lastError);
+            }
+        }
+
         void ISessionManager.LogoffSession(ISession session)
         {
             _tsServer.GetSession(session.Id).Logoff();

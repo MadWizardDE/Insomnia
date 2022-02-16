@@ -26,7 +26,7 @@ namespace MadWizard.Insomnia.Service.Sessions
         //ISession CreateSession(string username, string password);
 
         void ConnectSession(ISession source, ISession target, TimeSpan? keepPrivileges = null);
-        //void DisconnectSession(ISession session);
+        void DisconnectSession(ISession session);
         void LogoffSession(ISession session);
     }
 

@@ -26,6 +26,7 @@ namespace MadWizard.Insomnia.Service.UI
         ISessionMessageHandler<ConfigureWakeOptionMessage>,
         ISessionMessageHandler<ConnectToConsoleMessage>,
         ISessionMessageHandler<ConnectToRemoteMessage>,
+        ISessionMessageHandler<DisconnectSessionMessage>,
         IDisposable
 
     {
@@ -131,6 +132,20 @@ namespace MadWizard.Insomnia.Service.UI
                 await ConnectToSession(session, source, target);
             }
         }
+        async void ISessionMessageHandler<DisconnectSessionMessage>.Handle(ISession session, DisconnectSessionMessage message)
+        {
+            if (session.IsRemoteConnected)
+            {
+                ISession target;
+                if (message.User.SID > 0)
+                    target = _sessionManager.FindSessionByID(message.User.SID);
+                else
+                    target = _sessionManager.FindSessionByUserName(message.User.Name);
+
+                await DisconnectSession(session, target);
+            }
+        }
+
         async Task ConnectToSession(ISession trigger, ISession source, ISession target)
         {
             if (source != target)
@@ -195,6 +210,11 @@ namespace MadWizard.Insomnia.Service.UI
                         "Insomnia", $"Wechseln der {(targetConsole ? "Konsolen" : "Remote")}-Sitzung fehlgeschlagen", timeout: 20000);
                 }
             }
+        }
+
+        async Task DisconnectSession(ISession trigger, ISession session)
+        {
+            _sessionManager.DisconnectSession(session);
         }
 
         void IDisposable.Dispose()
@@ -316,7 +336,8 @@ namespace MadWizard.Insomnia.Service.UI
                     {
                         SID = session.Id,
 
-                        IsConsoleConnected = session.IsConsoleConnected
+                        IsConsoleConnected = session.IsConsoleConnected,
+                        IsRemoteConnected = session.IsRemoteConnected
                     };
 
                     if (manager.FindSessionByID(session.Id) != null) // alive?
