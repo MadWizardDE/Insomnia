@@ -23,6 +23,10 @@ namespace InsomniaTest
     {
         static async Task Main(string[] args)
         {
+            var name = System.Net.Dns.GetHostName();
+
+            Console.ReadKey();
+
             //PerformanceCounter myAppCpu =
             //new PerformanceCounter(
             //    "Process", "% Processor Time", "OUTLOOK", true);

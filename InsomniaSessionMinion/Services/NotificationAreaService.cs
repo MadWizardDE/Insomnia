@@ -169,6 +169,12 @@ namespace MadWizard.Insomnia.Minion.Services
                             ToolStripMenuItem disconnectItem = new ToolStripMenuItem("Trennen");
                             disconnectItem.Click += ContextMenu_DisconnectRemoteSessionClicked;
                             remoteSessions.DropDownItems.Add(disconnectItem);
+
+                            _notifyIcon.ContextMenuStrip.Items.Insert(0, new ToolStripSeparator());
+
+                            ToolStripMenuItem hostItem = new ToolStripMenuItem(System.Net.Dns.GetHostName());
+                            hostItem.Enabled = false;
+                            _notifyIcon.ContextMenuStrip.Items.Insert(0, hostItem);
                         }
 
                         _notifyIcon.ContextMenuStrip.Items.Add(remoteSessions);
