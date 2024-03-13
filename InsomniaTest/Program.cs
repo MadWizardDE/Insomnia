@@ -1,6 +1,7 @@
 ﻿using Cassia;
 using Castle.DynamicProxy;
 using MadWizard.Insomnia;
+using MadWizard.Insomnia.Service.SleepWatch.Detector;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -9,6 +10,7 @@ using System.DirectoryServices.AccountManagement;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security;
@@ -23,62 +25,16 @@ namespace InsomniaTest
     {
         static async Task Main(string[] args)
         {
-            var name = System.Net.Dns.GetHostName();
-
-            Console.ReadKey();
-
-            //PerformanceCounter myAppCpu =
-            //new PerformanceCounter(
-            //    "Process", "% Processor Time", "OUTLOOK", true);
-
-            //var proc = Process.GetProcessesByName("steam").First();
-            //var proc = Process.GetProcessById(10684);
-
-            var proc = Process.GetProcessById(0);
-
-            try
-            {
-                throw new InvalidOperationException();
-                //var handle = proc.Handle;
-            }
-            catch (Win32Exception e) when (e.NativeErrorCode == 5)
-            {
-                Console.WriteLine("Zugriff verweigert"); // Zugriff verweigert
-            }
-            catch (SystemException e) when (e is ArgumentException || e is InvalidOperationException)
-            {
-                Console.WriteLine("caught");
-            }
-
-
-
-            //foreach (var p in Process.GetProcesses())
-            //{
-            //    try
-            //    {
-            //        var handle = p.Handle;
-            //    }
-            //    catch (Exception e)
-            //    {
-            //        Console.WriteLine(p.ProcessName + "@" + p.Id);
-            //        Console.WriteLine(e.Message);
-            //    }
-            //}
-
-            Console.ReadKey();
-
-            //Console.WriteLine("Parent: " + ParentProcessUtilities.GetParentProcess(proc.Id)?.ProcessName);
-
-            //Console.WriteLine("Press the any key to stop...\n");
-            //while (!Console.KeyAvailable)
-            //{
-            //    //double pct = myAppCpu.NextValue();
-            //    double pct = await GetCpuUsageForProcess(proc);
-            //    Console.WriteLine("OUTLOOK'S CPU % = " + pct);
-            //    Thread.Sleep(250);
-            //}
-
+            TestNetworkSessions();
         }
+
+        private static void TestNetworkSessions()
+        {
+            //var sessions = NetworkSessions.EnumerateSessions();
+
+            //Console.ReadKey();
+        }
+
 
         private static async Task<double> GetCpuUsageForProcess(Process proc)
         {
@@ -170,30 +126,6 @@ namespace InsomniaTest
             Console.WriteLine(await test.GreetAsync("Nicht die Mama"));
 
             await test.GreetAsyncWithoutReturn("Hitler");
-        }
-
-        static void TestSerialize()
-        {
-            {
-                MyObject obj = new MyObject();
-                obj.Method = typeof(MyObject).GetMethod("Test");
-                IFormatter formatter = new BinaryFormatter();
-                Stream stream = new FileStream(@"C:\Users\Kevin\Desktop\file.bin", FileMode.Create, FileAccess.Write, FileShare.None);
-                formatter.Serialize(stream, obj);
-                stream.Close();
-            }
-
-            Console.ReadKey();
-
-            {
-                IFormatter formatter = new BinaryFormatter();
-                Stream stream = new FileStream(@"C:\Users\Kevin\Desktop\file.bin", FileMode.Open, FileAccess.Read, FileShare.Read);
-                MyObject obj = (MyObject)formatter.Deserialize(stream);
-                stream.Close();
-
-                // Here's the proof.  
-                Console.WriteLine("Method: {0}", obj.Method);
-            }
         }
 
         static async Task IdleTest()

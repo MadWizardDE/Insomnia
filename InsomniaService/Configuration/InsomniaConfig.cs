@@ -1,8 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using MadWizard.Insomnia.Tools;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.NetworkInformation;
+using static MadWizard.Insomnia.Configuration.SleepWatchConfig.ActivityDetectorConfig.ProcessActivityConfig;
 
 namespace MadWizard.Insomnia.Configuration
 {
@@ -22,8 +25,6 @@ namespace MadWizard.Insomnia.Configuration
         public AutoLogoutConfig AutoLogout { get; set; }
         public UserInterfaceConfig UserInterface { get; set; }
         public SleepWatchConfig SleepWatch { get; set; }
-        public RemoteControlConfig RemoteControl { get; set; }
-
         public LogSweeperConfig LogSweeper { get; set; }
 
         public LoggingConfig Logging { get; set; }
@@ -178,6 +179,57 @@ namespace MadWizard.Insomnia.Configuration
             public UserIdleConfig UserIdle { get; set; }
             public WakeOnLANConfig WakeOnLAN { get; set; }
             public ManualOverrideConfig ManualOverride { get; set; }
+            public NetworkActivityConfig NetworkActivity { get; set; }
+            public NetworkSessionsConfig NetworkSessions { get; set; }
+
+            public class NetworkSessionsConfig
+            {
+                public bool IgnoreIdle { get; set; } = true;
+            }
+
+            public class NetworkActivityConfig
+            {
+                public string Interface { get; set; }
+
+                public IDictionary<string, NetworkHostInfo> Host { get; private set; }
+                public IDictionary<string, HyperVHostInfo> HyperVHost { get; private set; }
+
+                public NetworkActivityConfig()
+                {
+                    Host = new Dictionary<string, NetworkHostInfo>();
+                    HyperVHost = new Dictionary<string, HyperVHostInfo>();
+                }
+
+                public class NetworkHostInfo
+                {
+                    public string Name { get; set; }
+
+                    public IDictionary<string, TCPServiceInfo> TCPService { get; private set; }
+
+                    private string MAC { get; set; }
+                    private string IPv4 { get; set; }
+
+                    public PhysicalAddress PhysicalAddress => this.MAC != null ? PhysicalAddress.Parse(this.MAC) : null;
+                    public IPAddress IPv4Address => this.IPv4 != null ? IPAddress.Parse(this.IPv4) : null;
+
+                }
+
+                public class HyperVHostInfo : NetworkHostInfo
+                {
+                    public RequestedState? OnAccess { get; set; } = RequestedState.Enabled;
+                    public RequestedState? OnIdle { get; set; } = RequestedState.Offline;
+
+
+                }
+
+                public class TCPServiceInfo
+                {
+                    public string Name { get; set; }
+                    public int Port { get; set; }
+                    public int Threshold { get; set; } = 1;
+                }
+
+            }
 
             public class PingHostConfig
             {
@@ -365,44 +417,6 @@ namespace MadWizard.Insomnia.Configuration
 
         public class AntiGhostConfig
         {
-        }
-    }
-
-    public class RemoteControlConfig
-    {
-        public DiscoveryType Discovery { get; set; } = DiscoveryType.None;
-        public SecurityType Security { get; set; } = SecurityType.None;
-
-        public enum DiscoveryType
-        {
-            None = 0,
-
-            Broadcast
-        }
-
-        public enum SecurityType
-        {
-            None = 0,
-
-            User
-        }
-
-        public class RemoteUserConfig
-        {
-            public string Name { get; set; }
-
-            public AuthType Auth { get; set; } = AuthType.None;
-
-            public string Secret { get; set; }
-            public string Path { get; set; }
-
-            public enum AuthType
-            {
-                None = 0,
-
-                Password,
-                Certificate
-            }
         }
     }
 

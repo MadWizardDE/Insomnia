@@ -338,5 +338,65 @@ namespace MadWizard.Insomnia.Tools
             }
         }
         #endregion
+
+        #region NetworkSessions
+        [DllImport("netapi32.dll", SetLastError = true)]
+        public static extern NET_API_STATUS NetSessionEnum(
+                    string serverName,
+                    string uncClientName,
+                    string userName,
+                    UInt32 level,
+                    out IntPtr bufPtr,
+                    int prefMaxLen,
+                    out UInt32 entriesRead,
+                    out UInt32 totalEntries,
+                    ref IntPtr resume_handle
+            );
+
+        [DllImport("netapi32.dll")]
+        public static extern uint NetApiBufferFree(IntPtr Buffer);
+
+        public const int MAX_PREFERRED_LENGTH = -1;
+
+        public enum NET_API_STATUS : uint
+        {
+            NERR_Success = 0,
+            NERR_InvalidComputer = 2351,
+            NERR_NotPrimary = 2226,
+            NERR_SpeGroupOp = 2234,
+            NERR_LastAdmin = 2452,
+            NERR_BadPassword = 2203,
+            NERR_PasswordTooShort = 2245,
+            NERR_UserNotFound = 2221,
+            ERROR_ACCESS_DENIED = 5,
+            ERROR_NOT_ENOUGH_MEMORY = 8,
+            ERROR_INVALID_PARAMETER = 87,
+            ERROR_INVALID_NAME = 123,
+            ERROR_INVALID_LEVEL = 124,
+            ERROR_MORE_DATA = 234,
+            ERROR_SESSION_CREDENTIAL_CONFLICT = 1219
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        public struct SESSION_INFO_502
+        {
+            public static readonly int SIZE = Marshal.SizeOf(typeof(SESSION_INFO_502));
+
+            public string cname;
+            public string username;
+            public uint num_opens;
+            public uint time;
+            public uint idle_time;
+            public SESSION_INFO_502_USER_FLAGS user_flags;
+            public string cltype_name;
+            public string transport;
+        }
+
+        public enum SESSION_INFO_502_USER_FLAGS : uint
+        {
+            SESS_GUEST = 1,
+            SESS_NOENCRYPTION = 2
+        }
+        #endregion
     }
 }

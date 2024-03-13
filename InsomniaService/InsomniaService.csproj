@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <UserSecretsId>dotnet-InsomniaService-CA259554-4F36-489F-A3C7-1D57E68C4B66</UserSecretsId>
     <RootNamespace>MadWizard.Insomnia.Service</RootNamespace>
     <StartupObject>MadWizard.Insomnia.Service.Program</StartupObject>
@@ -9,9 +9,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Modules\Bugfix\**" />
     <Compile Remove="Modules\UI\**" />
+    <Content Remove="Modules\Bugfix\**" />
     <Content Remove="Modules\UI\**" />
+    <EmbeddedResource Remove="Modules\Bugfix\**" />
     <EmbeddedResource Remove="Modules\UI\**" />
+    <None Remove="Modules\Bugfix\**" />
     <None Remove="Modules\UI\**" />
   </ItemGroup>
 
@@ -28,26 +32,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="3.0.0" />
     <PackageReference Include="NamedPipeWrapper.NetStandard" Version="1.5.0" />
     <PackageReference Include="NLog.Extensions.Logging" Version="1.6.1" />
-
-    <PackageReference Include="Google.Protobuf" Version="3.10.1" />
-    <PackageReference Include="Grpc" Version="2.25.0" />
-    <PackageReference Include="Grpc.Tools" Version="2.25.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Modules\Bugfix\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Protobuf Include="..\proto\insomnia.proto" GrpcServices="Both" ProtoRoot="..\proto\">
-      <Link>ProtocolBuffers\insomnia.proto</Link>
-    </Protobuf>
-    <Protobuf Include="..\proto\test.proto">
-      <Link>ProtocolBuffers\test.proto</Link>
-    </Protobuf>
+    <PackageReference Include="SharpPcap" Version="6.3.0" />
+    <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

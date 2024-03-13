@@ -48,10 +48,7 @@ namespace MadWizard.Insomnia.Service
         public static IHostBuilder CreateHostBuilder(string[] args) =>
                 Host.CreateDefaultBuilder(args)
                     .UseInsomniaServiceLifetime()
-                    .ConfigureAppConfiguration((ctx, builder) =>
-                    {
-                        builder.AddCustomXmlFile(Path.Combine(ctx.HostingEnvironment.ContentRootPath, "config.xml"));
-                    })
+                    .ConfigureAppConfiguration((ctx, builder) => builder.AddCustomXmlFile(Path.Combine(ctx.HostingEnvironment.ContentRootPath, "config.xml")))
                     .ConfigureLogging((ctx, loggerBuilder) =>
                     {
                         var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);

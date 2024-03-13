@@ -17,6 +17,8 @@ namespace MadWizard.Insomnia.Service
         public static readonly EventId STANDBY_ENTER = new EventId(11, "Entering Standby");
         public static readonly EventId STANDBY_LEAVE = new EventId(12, "Resuming Operation");
 
+        public static readonly EventId MONITOR_NETWORK = new EventId(21, "NetworkActivity");
+
         public static readonly EventId WAKE_ON_LAN = new EventId(31, "WOL");
 
         public static readonly EventId SESSION_MINION_STARTED = new EventId(81, "SessionMinion started");
