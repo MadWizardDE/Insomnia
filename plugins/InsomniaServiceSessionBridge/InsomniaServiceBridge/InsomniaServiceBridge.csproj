@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>MadWizard.Insomnia.Service.Bridge</RootNamespace>
+    <SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="TestMessage.proto" />
+  </ItemGroup>
+
+  <ItemGroup>
+	  <ProjectReference Include="..\..\..\InsomniaService\InsomniaService.csproj">
+		  <Private>false</Private>
+		  <ExcludeAssets>runtime</ExcludeAssets>
+	  </ProjectReference>
+
+	  <ProjectReference Include="..\..\..\InsomniaCore\InsomniaCore.csproj">
+		  <Private>false</Private>
+		  <ExcludeAssets>all</ExcludeAssets>
+	  </ProjectReference>
+
+	  <ProjectReference Include="..\InsomniaPipe\InsomniaPipe.csproj" />
+  </ItemGroup>
+
+</Project>

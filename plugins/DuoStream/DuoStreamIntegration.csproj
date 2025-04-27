@@ -1,0 +1,53 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<RootNamespace>MadWizard.Insomnia.Service.Duo</RootNamespace>
+	<SupportedOSPlatformVersion>8.0</SupportedOSPlatformVersion>
+	<OutputType>Library</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Refit" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+	  <ProjectReference Include="..\..\InsomniaService\InsomniaService.csproj">
+		  <Private>false</Private>
+		  <ExcludeAssets>runtime</ExcludeAssets>
+	  </ProjectReference>
+
+	  <ProjectReference Include="..\..\InsomniaCore\InsomniaCore.csproj">
+		  <Private>false</Private>
+		  <ExcludeAssets>all</ExcludeAssets>
+	  </ProjectReference>
+
+	  <ProjectReference Include="..\InsomniaServiceSessionBridge\InsomniaPipe\InsomniaPipe.csproj">
+		  <Private>false</Private>
+		  <ExcludeAssets>runtime</ExcludeAssets>
+	  </ProjectReference>
+
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Tools\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

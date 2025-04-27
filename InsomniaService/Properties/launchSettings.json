@@ -2,9 +2,8 @@
   "profiles": {
     "InsomniaService": {
       "commandName": "Project",
-      "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Development"
-      }
+      "commandLineArgs": "test LastInputTime",
+      "workingDirectory": "C:\\WizardStuff\\Insomnia"
     }
   }
 }

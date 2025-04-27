@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-package MadWizard.Insomnia.Remote;
-
-message TestMessage {
-
-	string test = 1;
-
-}

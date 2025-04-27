@@ -1,130 +1,212 @@
 ﻿using Autofac;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+using Autofac.Extensions.DependencyInjection;
+using MadWizard.Insomnia;
+using MadWizard.Insomnia.Configuration;
+using MadWizard.Insomnia.Network.Manager;
+using MadWizard.Insomnia.NetworkSession.Manager;
+using MadWizard.Insomnia.Power.Manager;
+using MadWizard.Insomnia.Service;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.Xml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.Diagnostics;
-using MadWizard.Insomnia.Configuration;
-using Autofac.Extensions.DependencyInjection;
-using System.IO;
-using MadWizard.Insomnia.Service.Lifetime;
-using System.Threading;
-using MadWizard.Insomnia.Service.Sessions;
-using MadWizard.Insomnia.Service.SleepWatch;
-using MadWizard.Insomnia.Service.UI;
-using MadWizard.Insomnia.Service.Debug;
-using Microsoft.Extensions.Logging.EventLog;
-using System.Reflection;
-using NLog.Config;
-using NLog.Targets;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration.Xml;
 using NLog.Extensions.Logging;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
+using System.Reflection;
+using NLog;
+using MadWizard.Insomnia.Session.Manager;
+using MadWizard.Insomnia.Processes.Manager;
+using MadWizard.Insomnia.Logging;
+using MadWizard.Insomnia.Test;
+using MadWizard.Insomnia.Service.Actions;
+using MadWizard.Insomnia.Service.Configuration;
+using CommandLine;
+using MadWizard.Insomnia.Service.Options;
+using MadWizard.Insomnia.Service.Configuration.Builder;
+using System.ServiceProcess;
 
-namespace MadWizard.Insomnia.Service
+//await MadWizard.Insomnia.Test.Debugger.UntilAttached();
+
+LogManager.Setup().SetupExtensions(ext => ext.RegisterLayoutRenderer<SleepTimeLayoutRenderer>("sleep-duration"));
+
+if (Process.GetCurrentProcess().IsWindowsService())
 {
-    public static class Program
+    var dir = new FileInfo(Assembly.GetExecutingAssembly().Locati‌​on).Directory!;
+
+    Directory.SetCurrentDirectory(dir.FullName);
+
+    var logs = Path.Combine(Directory.GetCurrentDirectory(), "logs");
+
+    Directory.CreateDirectory(logs);
+
+    File.Delete(@"logs/error.log");
+}
+
+
+bool isRunningAsService = Process.GetCurrentProcess().IsWindowsService();
+
+string configDir = Path.Combine(Directory.GetCurrentDirectory(), "config");
+string configFileName = "config.xml";
+string configFilePath = Path.Combine(configDir, configFileName);
+
+ServiceController service = new("InsomniaService");
+
+switch (Parser.Default.ParseArguments<TestOptions, ServiceOptions>(args).Value)
+{
+    case ServiceOptions opts when opts.Command == "start":
+        service.Start();
+        service.WaitForStatus(ServiceControllerStatus.Running, opts.Timeout);
+        return 0;
+    case ServiceOptions opts when opts.Command == "stop":
+        service.Stop();
+        service.WaitForStatus(ServiceControllerStatus.Stopped, opts.Timeout);
+        return 0;
+
+    case TestOptions opts when opts.Command == "LastInputTime":
+        long ticks = UserInput.LastInputTimeTicks;
+        Console.Write($"{ticks}");
+        return 0;
+}
+
+IHostBuilder CreateHostBuilder(string[] args) => Host.CreateDefaultBuilder(args)
+    .UseContentRoot(Directory.GetCurrentDirectory())
+
+    .ConfigureAppConfiguration((ctx, builder) =>
     {
-        public static void Main(string[] args)
+        builder.SetBasePath(configDir);
+
+        builder.AddCustomXmlFile(configFileName, optional: !isRunningAsService, reloadOnChange: true);
+
+        builder.AddCommandLine(args);
+    })
+
+    .ConfigureLogging((ctx, builder) =>
+    {
+        builder.ClearProviders();
+        builder.AddConsole();
+        builder.AddNLog();
+    })
+
+    .UseServiceProviderFactory(new AutofacServiceProviderFactory()).ConfigureContainer<ContainerBuilder>((ctx, builder) =>
+    {
+        var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);
+
+        builder.Register(_ => ctx.Configuration).As<IConfiguration>();
+
+        if (config != null)
         {
-            try
+            // Implementing Platform-Managers
+            builder.RegisterType<PowerManager>()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .AsSelf();
+            builder.RegisterType<ProcessManager>()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .AsSelf();
+            builder.RegisterType<HyperVManager>()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .AsSelf();
+            builder.RegisterType<NetSessionManager>()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .AsSelf();
+            builder.RegisterType<TerminalServicesManager>().PropertiesAutowired()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .AsSelf();
+
+            // Add Actions
+            builder.RegisterType<CommandExecutor>()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .As<Actor>();
+
+
+            if (isRunningAsService)
             {
-                var host = CreateHostBuilder(args).Build();
+                // Attaching Service Control
+                builder.RegisterType<WindowsService>()
+                    .AsImplementedInterfaces()
+                    .SingleInstance()
+                    .AsSelf();
 
-                Thread.Sleep(host.Services.GetService<InsomniaConfig>()?.DebugParameters?.StartupDelay ?? 0);
+                builder.RegisterModule(new CoreModule(config));
 
-                host.Run();
+                builder.RegisterPluginModules<PluginModule>();
             }
-            catch (Exception e)
+            else
             {
-                File.WriteAllText(@"C:\INSOMNIA_ERROR.log", e.ToString());
-            }
-        }
-
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-                Host.CreateDefaultBuilder(args)
-                    .UseInsomniaServiceLifetime()
-                    .ConfigureAppConfiguration((ctx, builder) => builder.AddCustomXmlFile(Path.Combine(ctx.HostingEnvironment.ContentRootPath, "config.xml")))
-                    .ConfigureLogging((ctx, loggerBuilder) =>
-                    {
-                        var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);
-
-                        if (config.Logging != null && config.Logging.LogLevel != LogLevel.None)
-                        {
-                            if (config.Logging.FileSystemLog != null)
-                                ConfigureNLog(ctx.HostingEnvironment, loggerBuilder);
-
-                            if (config.Logging.EventLog != null)
-                                loggerBuilder.AddEventLog();
-
-                            loggerBuilder.SetMinimumLevel(config.Logging.LogLevel);
-                            loggerBuilder.AddConsole();
-                        }
-                    })
-
-                    .UseServiceProviderFactory(new AutofacServiceProviderFactory())
-                    .ConfigureContainer<ContainerBuilder>((ctx, builder) =>
-                    {
-                        var config = ctx.Configuration.Get<InsomniaConfig>(opt => opt.BindNonPublicProperties = true);
-
-                        builder.RegisterInstance(config);
-
-                        builder.RegisterModule<SessionModule>();
-
-                        if (config.SleepWatch != null)
-                        {
-                            builder.RegisterModule(new SleepWatchModule(config.SleepWatch));
-                        }
-
-                        if (config.UserInterface != null)
-                        {
-                            builder.RegisterModule(new UserInterfaceModule(config.UserInterface));
-                        }
-
-                        if (config.AutoLogout != null)
-                        {
-                            builder.RegisterType<AutoLogout>()
-                                .AttributedPropertiesAutowired()
-                                .AsImplementedInterfaces()
-                                .SingleInstance()
-                                ;
-                        }
-
-                        builder.RegisterType<LogFileSweeper>().AttributedPropertiesAutowired().AsImplementedInterfaces().SingleInstance();
-                    })
-                    .ConfigureServices((hostContext, services) =>
-                    {
-                        services.AddHostedService<TestWorker>();
-
-                        services.Configure<EventLogSettings>(settings =>
-                        {
-                            if (string.IsNullOrEmpty(settings.SourceName))
-                            {
-                                settings.SourceName = hostContext.HostingEnvironment.ApplicationName;
-                            }
-                        });
-                    })
-                ;
-
-        private static void ConfigureNLog(IHostEnvironment hostEnvironment, ILoggingBuilder loggingBuilder)
-        {
-            var config = new LoggingConfiguration();
-            {
-                var targetFile = new FileTarget("file")
+                switch (Parser.Default.ParseArguments<TestOptions, ConfigOptions>(args).Value)
                 {
-                    FileName = Path.Combine(hostEnvironment.ContentRootPath, "insomnia.log"),
-                    Layout = "${longdate} ${pad:padding=5:inner=${level:uppercase=true}} ${logger:shortName=true} :: ${message}  ${exception}"
-                };
+                    case ConfigOptions opts:
+                        switch (opts.Action)
+                        {
+                            case "init":
+                                builder.RegisterType<InitialConfigurationBuilder>()
+                                    .WithParameter("iniFilePath", opts.IniFilePath)
+                                    .WithParameter("configFilePath", configFilePath)
+                                    .AsImplementedInterfaces()
+                                    .SingleInstance()
+                                    .AsSelf();
+                                break;
+                            case "read":
+                                builder.RegisterType<InitialConfigurationReader>()
+                                    .WithParameter("configFilePath", configFilePath)
+                                    .WithParameter("iniFilePath", opts.IniFilePath)
+                                    .AsImplementedInterfaces()
+                                    .SingleInstance()
+                                    .AsSelf();
+                                break;
+                        }
 
-                config.AddTarget(targetFile);
-                config.AddRuleForAllLevels(targetFile);
+                        // Add InitialConfigurators
+                        builder.RegisterType<NetworkMonitorConfigurator>()
+                            .AsImplementedInterfaces()
+                            .SingleInstance();
+                        builder.RegisterType<SessionMonitorConfigurator>()
+                            .AsImplementedInterfaces()
+                            .SingleInstance();
+
+                        builder.RegisterPluginModules<ConfigPluginModule>();
+
+                        break;
+
+                    default:
+                        throw new Exception("Invalid command line arguments.");
+                }
             }
 
-            loggingBuilder.AddNLog(config);
         }
-    }
+    })
+            
+    .ConfigureServices((ctx, services) =>
+    {
+        services.Configure<InsomniaConfig>(ctx.Configuration, opt => opt.BindNonPublicProperties = true);
+
+        //services.AddHostedService<Test>();
+    })
+;
+
+TaskScheduler.UnobservedTaskException += (sender, args) =>
+{
+    File.AppendAllText(@"logs/error.log", $"Unobserved Task Exception: {args.Exception}");
+    args.SetObserved(); // Prevents app crash
+};
+
+try
+{
+    var host = CreateHostBuilder(args).Build();
+
+    host.Run();
+
+    return 0;
+}
+catch (Exception e)
+{
+    File.WriteAllText(@"logs/error.log", e.ToString());
+
+    return 1;
 }
