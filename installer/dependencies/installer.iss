@@ -56,35 +56,12 @@ begin
   Result := True;
 end;
 
-<event('PrepareToInstall')>
-function Npcap_PrepareToInstall(var NeedsRestart: Boolean): String;
+procedure CopyInstallerTo(TargetPath: String);
 var
-  ResultCode: Integer;
+  SourceFile: String;
 begin
-  Result := '';
-  NeedsRestart := False;
-  
-  // idpAddFileComp('https://npcap.com/dist/npcap-1.81.exe',  ExpandConstant('{tmp}\npcap.exe'),  'insomniaservice\networkmonitor');
-  // idpDownloadAfter(wpReady);
-  
-  if FileExists(ExpandConstant('{tmp}\npcap.exe')) then
-  begin
-    if not Exec(ExpandConstant('{tmp}\npcap.exe'), '/quiet', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
-      MsgBox('Failed to run the dependency installer. Error code: ' + IntToStr(ResultCode), mbError, MB_OK);
-  end;
-end;
-
-<event('CurPageChanged')>
-procedure CheckPrerequisites(CurPageID: Integer);
-begin
-  if CurPageID = wpSelectComponents then
-  begin
-    //WizardForm.ComponentsList.Items[0].Enabled := False;
-
-    //Log(WizardForm.ComponentsList.Items[0].SubItems[0]);
+  SourceFile := ExpandConstant('{srcexe}');
     
-    //Log(WizardForm.ComponentsList.ItemSubitem[1]);
-    
-    //WizardForm.ComponentsList.ItemEnabled[1] := False;
-  end;
+  ForceDirectories(ExtractFileDir(TargetPath));
+  FileCopy(SourceFile, TargetPath, False);
 end;

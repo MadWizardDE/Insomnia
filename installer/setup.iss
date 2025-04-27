@@ -39,7 +39,7 @@ OutputBaseFilename=Insomnia_v{#MyAppVersion}
 SolidCompression=yes
 WizardStyle=classic
 SetupIconFile=..\InsomniaService\Properties\moon.ico
-AppModifyPath="{app}\Setup.exe" /modify=1
+AppModifyPath="{commonappdata}\{#MyAppName}\Installer\setup.exe" /modify=1
 UninstallDisplayIcon={app}\InsomniaService.exe
 DisableProgramGroupPage=yes
 DisableWelcomePage=no
@@ -151,6 +151,8 @@ Filename: "sc.exe"; \
 [UninstallDelete]
 Type: files; Name: "{app}\config\prefs.ini";
 Type: filesandordirs; Name: "{app}\logs";
+Type: filesandordirs; Name: "{commonappdata}\{#MyAppName}\Installer";
+
 
 [Code]
 var
@@ -162,7 +164,7 @@ begin
   IsReinstall := RegKeyExists(HKEY_LOCAL_MACHINE, UninstallKey);
 
   HasReadConfigFile := False;
-
+  
   Result := True;
 end;
 
@@ -191,8 +193,11 @@ begin
   if CurStep = ssPostInstall then
   begin
     AddUninstallerArguments('/SILENT /CONTROLPANEL');
+    CopyInstallerTo(ExpandConstant('{commonappdata}\{#MyAppName}\Installer\setup.exe'))
   end;
 end;
+
+// --- Uninstaller Logic --- //
 
 function InitializeUninstall(): Boolean;
 begin
