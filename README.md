@@ -18,7 +18,7 @@ Features marked with a construction sign (🚧) are not fully operational yet, b
 - Configure actions to take, when the session becomes idle (lock, logout, disconnect, execute a program/script, ...)
 
 ### NetworkMonitor
-Utilizes [npcap](https://npcap.com/) to monitor incoming network packets.
+Utilizes the free [npcap](https://npcap.com/) library to monitor incoming network packets.
 
 - Define arbitrary network services (by port usage) that will stop the PC from suspending, while traffic is registered
 - Configure triggers to take actions when a service is accessed or starts to idle
@@ -59,3 +59,17 @@ For those who are enthusiastic users of [DuoStream](https://github.com/DuoStream
 
 - start instances on demand, when they are accessed by a Moonlight client (no clientside configuration needed)
 - stop instances after they become idle, to reduce power consumption of the GPU and to reduce the overall footprint of system resources
+
+## System Requirements
+
+- Windows 8 / 10 / 11
+- .NET 8 / .NET Framework 4.8
+- pcap (only needed for the NetworkMonitor)
+
+### How to get started
+
+A considerable amount of development time was invested to provide you with a sophisticated installer, that allows you to set everything up and running in a minute.
+
+It does the work for you, to register Insomnia as a system service, download and install all necessary dependencies, guide you through a basic configuration of the parameters. Nevertheless, you are encouraged to dive into the 🚧 **Wiki** to discover, what Insomnia can do for you and how to configure it.
+
+If it happens that you decide against using Insomnia, the installer will help you to remove everything from your system completely. For your convenience, you can run the installer again (or hit "Modify" in the system settings) to add/remove some of the optional features later on.
