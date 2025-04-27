@@ -4,10 +4,13 @@ using MadWizard.Insomnia.Manager.Processes;
 using MadWizard.Insomnia.Session;
 using MadWizard.Insomnia.Session.Manager;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -15,11 +18,25 @@ namespace MadWizard.Insomnia.Service.Actions
 {
     class CommandExecutor : Actor
     {
+        private const string SYSTEM_PROFILE_PATH = @"C:\WINDOWS\system32\config\systemprofile";
+
         public required ILogger<CommandExecutor> Logger { protected get; init; }
 
         [ActionHandler("exec")]
         internal void HandleActionExec(string command, string? arguments, ISession? session = null)
         {
+            /**
+             * Examples:
+             * %SYSTEMROOT% / %WINDIR% = C:\Windows
+             * %USERPROFILE% = C:\Users\<username>
+             */
+            command = Path.GetFullPath(Environment.ExpandEnvironmentVariables(command));
+
+            // Fix the wrong profile path
+            if (session != null && command.Contains(SYSTEM_PROFILE_PATH, StringComparison.InvariantCultureIgnoreCase))
+                command = command.Replace(SYSTEM_PROFILE_PATH, session.GetProfilePath(), 
+                    StringComparison.InvariantCultureIgnoreCase);
+
             var start = DetermineStartInfo(command, arguments);
 
             Logger.LogInformation($"Executing: '{start.FileName}' with {start.ArgumentsToQuotedString()} as {session?.ToString() ?? "SYSTEM"}");
@@ -36,8 +53,6 @@ namespace MadWizard.Insomnia.Service.Actions
 
         private ProcessStartInfo DetermineStartInfo(string command, string? arguments)
         {
-            command = Path.GetFullPath(Environment.ExpandEnvironmentVariables(command));
-
             var startInfo = new ProcessStartInfo()
             {
                 UseShellExecute = false,
@@ -81,6 +96,58 @@ namespace MadWizard.Insomnia.Service.Actions
 
             return startInfo;
         }
+    }
 
+    file class ImpersonationContext : IDisposable
+    {
+        private nint _userToken = 0;
+        private bool _isImpersonating = false;
+
+        public ImpersonationContext(nint token)
+        {
+            _userToken = token;
+
+            if (!ImpersonateLoggedOnUser(_userToken))
+            {
+                throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            _isImpersonating = true;
+        }
+
+        public void Dispose()
+        {
+            if (_isImpersonating)
+            {
+                RevertToSelf();
+
+                _isImpersonating = false;
+            }
+        }
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern bool ImpersonateLoggedOnUser(IntPtr hToken);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        public static extern bool RevertToSelf();
+
+    }
+
+    file static class UserProfileHelper
+    {
+        public static string? GetProfilePath(this ISession session)
+        {
+            if (((TerminalServicesSession)session).SID is string sid)
+            {
+                using RegistryKey? profileListKey = Registry.LocalMachine!.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\" + sid);
+
+                if (profileListKey != null)
+                {
+                    return profileListKey.GetValue("ProfileImagePath") as string;
+                }
+            }
+
+            return null;
+        }
     }
 }

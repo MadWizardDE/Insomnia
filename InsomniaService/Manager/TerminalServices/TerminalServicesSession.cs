@@ -18,6 +18,8 @@ namespace MadWizard.Insomnia.Session.Manager
 
         public NTAccount? UserAccount => string.IsNullOrEmpty(UserName) ? null : new NTAccount(DomainName, UserName);
 
+        public string? SID => (UserAccount?.Translate(typeof(SecurityIdentifier)) as SecurityIdentifier)?.Value;
+
         public string? ClientName => QuerySessionInformation<string>(id, WTS_INFO_CLASS.WTSClientName)?.NullIfWhiteSpace();
 
         public bool IsConnected => IsConsoleConnected || IsRemoteConnected;
