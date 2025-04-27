@@ -14,7 +14,8 @@ Features marked with a construction sign (🚧) are not fully operational yet, b
 
 - Select user that should keep the system running, while using the computer
     - Takes the standard LastInputTime of the Windows session into account
-    - Designate processes with an activity threshold, that will also count as user activity
+    - Remote Desktop connections are always considered as active
+    - Designate processes with a CPU threshold, that will also count as user activity
 - Configure actions to take, when the session becomes idle (lock, logout, disconnect, execute a program/script, ...)
 
 ### NetworkMonitor
@@ -29,7 +30,7 @@ Utilizes the free [npcap](https://npcap.com/) library to monitor incoming networ
 
 ### ProcessMonitor
 
-- Designate processes with an activity threshold, that will also count as system activity
+- Designate processes with an CPU threshold, that will count as system activity
 
 ### PowerRequestMonitor
 
@@ -78,4 +79,4 @@ It does the work for you, to register Insomnia as a system service, download and
 
 If it happens that you decide against using Insomnia, the installer will help you to remove everything from your system completely. For your convenience, you can run the installer again (or hit "Modify" in the system settings) to add/remove some of the optional features later on.
 
-🪄 Just download the latest release from GitHub and follow the steps of the wizard.
+To begin download the latest release from GitHub and follow the steps of the wizard. 🪄
