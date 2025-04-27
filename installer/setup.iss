@@ -6,7 +6,7 @@
 
 #define MyAppId "{B5C0DEEA-FFF1-49B8-B923-4E680E4A552D}"
 #define MyAppName "Insomnia"
-#define MyAppVersion "1.0"
+#define MyAppVersion "2.0.0-beta"
 #define MyAppPublisher "MadWizardDE"
 #define MyAppURL "https://madwizard.de/"
 
