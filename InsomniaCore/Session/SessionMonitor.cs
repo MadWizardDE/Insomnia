@@ -50,10 +50,6 @@ namespace MadWizard.Insomnia.Session
 
         private void MayBeTrackSession(ISession session, bool logon = false)
         {
-            if (config.IgnoreClientName != null)
-                if (config.IgnoreClientName == session.ClientName)
-                    return;
-
             var watch = new SessionWatch(session);
 
             config.Configure(session, watch.ApplyConfiguration);

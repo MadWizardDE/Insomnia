@@ -16,11 +16,7 @@ namespace MadWizard.Insomnia.Session
         [EventContext]
         public ISession Session => session;
 
-        private bool _applied = false;
-        private bool _appliedAction = false;
-        private bool _appliedProcess = false;
-
-        internal bool ShouldBeTracked => _applied || _appliedAction || _appliedProcess;
+        internal bool ShouldBeTracked => true;
 
         public event EventInvocation? Login;
         public event EventInvocation? RemoteLogin;
@@ -28,45 +24,14 @@ namespace MadWizard.Insomnia.Session
 
         internal void ApplyConfiguration(SessionWatchDescriptor desc)
         {
-            if (desc.IgnoreClientName != null)
-                if (desc.IgnoreClientName == session.ClientName)
-                    return;
-
-            this._applied = true;
-
-            if (desc.OnIdle != null)
-            {
-                AddEventAction(nameof(Idle), desc.OnIdle);
-
-                this._appliedAction = true;
-            }
-
-            if (desc.OnLogin != null)
-            {
-                AddEventAction(nameof(Login), desc.OnLogin);
-
-                this._appliedAction = true;
-            }
-
-            if (desc.OnRemoteLogin != null)
-            {
-                AddEventAction(nameof(RemoteLogin), desc.OnRemoteLogin);
-
-                this._appliedAction = true;
-            }
-
-            if (desc.OnConsolesLogin != null)
-            {
-                AddEventAction(nameof(ConsoleLogin), desc.OnConsolesLogin);
-
-                this._appliedAction = true;
-            }
+            AddEventAction(nameof(Idle), desc.OnIdle);
+            AddEventAction(nameof(Login), desc.OnLogin);
+            AddEventAction(nameof(RemoteLogin), desc.OnRemoteLogin);
+            AddEventAction(nameof(ConsoleLogin), desc.OnConsolesLogin);
 
             foreach (var info in desc.Process)
             {
                 this.StartTracking(new SessionProcessGroup(this, info));
-
-                this._appliedProcess = true;
             }
         }
 
@@ -83,10 +48,6 @@ namespace MadWizard.Insomnia.Session
                     yield return new SessionUsageToken(session.UserName);
                 }
             }
-            //else if (session.IsConsoleConnected && session.IsLocked != true) // fallback
-            //{
-            //    yield return new SessionUsageToken(session.UserName);
-            //}
 
             foreach (var token in base.InspectResource(interval))
                     yield return token;

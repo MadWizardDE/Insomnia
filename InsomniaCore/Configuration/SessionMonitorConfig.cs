@@ -37,13 +37,11 @@ namespace MadWizard.Insomnia.Configuration
 
     public class SessionMonitorConfig : SessionConfig<SessionWatchDescriptor>
     {
-        public string? IgnoreClientName { get; set; }
+
     }
 
     public class SessionWatchDescriptor : SessionDescriptor
     {
-        public string? IgnoreClientName { get; set; }
-
         public ScheduledAction? OnIdle { get; set; }
         public ScheduledAction? OnLogin { get; set; }
         public ScheduledAction? OnRemoteLogin { get; set; }

@@ -4,7 +4,7 @@ namespace MadWizard.Insomnia.Service.Bridge.Configuration
 {
     public class BridgedSessionManagerConfig : SessionConfig<BridgedSessionDescriptor>
     {
-        public bool? SpawnMinions { get; set; }
+        public bool? SpawnMinions { get; set; } = true;
     }
 
     public class BridgedSessionDescriptor : SessionDescriptor

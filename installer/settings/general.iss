@@ -30,33 +30,75 @@ type
     IdleAction: String;
     IdleActionTimeout: String;
     UsageAction: String;
+    
+    TrackSession: String;
+    AllowSleepControl: String;
   end;
 
 var
   SettingsPage: TWizardPage;
   SettingsControls: TSettingsPageControls;
 
-procedure AddSessionMatchers(Box: TNewComboBox);
-begin
-  Box.Style := csDropDownList;
-
-  Box.Items.Add('None');
-  Box.Items.Add('Only Me');
-  Box.Items.Add('Everyone');
-  Box.Items.Add('Administrators');
-end;
-
 function GetSessionMatcher(Box: TNewComboBox): String;
 begin
-  case Box.ItemIndex of
-    0: Result := '';
-    1: Result := 'user';
-    2: Result := 'everyone';
-    3: Result := 'administrator';
-  else
-    Result := '???';
-  end;
+  if Box.Items.Count >= 4 then
+    case Box.ItemIndex of
+      0: Result := '';
+      1: Result := 'user';
+      2: Result := 'administrator';
+      3: Result := 'everyone';
+      4: Result := 'custom';
+    else
+      Result := '???';
+    end
+  else if Box.Items.Count = 2 then
+    case Box.ItemIndex of
+      0: Result := '';
+      1: Result := 'everyone';
+    else
+      Result := '???';
+    end;
 end;
+
+procedure SetSessionMatcher(Box: TNewComboBox; Matcher: String);
+begin
+  if Box.Items.Count = 4 then
+    case Matcher of
+      '': Box.ItemIndex := 0;
+      'user': Box.ItemIndex := 1;
+      'administrator': Box.ItemIndex := 2;
+      'everyone': Box.ItemIndex := 3;
+      'custom':
+      begin
+        Box.Items.Add('Custom');
+        Box.ItemIndex := 4;
+      end
+    else
+      Box.ItemIndex := -1;
+    end
+  else if Box.Items.Count = 2 then
+    case Matcher of
+      '': Box.ItemIndex := 0;
+      'everyone': Box.ItemIndex := 1;
+    else
+      Box.ItemIndex := -1;
+    end
+end;
+
+
+procedure OnSessionTrackingChanged(Sender: TObject);
+begin
+  with SettingsControls do
+    if SessionTrackingCombo.ItemIndex = 0 then
+    begin
+      SleepControlCombo.Enabled := False;
+      SleepControlCombo.ItemIndex := 0;
+    end else
+    begin
+      SleepControlCombo.Enabled := True
+    end;
+end;
+
   
 function CreateSettingsPage(AfterPageID: Integer): TWizardPage;
 begin
@@ -149,13 +191,19 @@ begin
     SessionTrackingCombo.Top := SessionTrackingLabel.Top;
     SessionTrackingCombo.Left := SettingsPage.Surface.Width - ScaleX(100);
     SessionTrackingCombo.Width := ScaleX(100);
-    AddSessionMatchers(SessionTrackingCombo)
-    SessionTrackingCombo.ItemIndex := 2;
+    SessionTrackingCombo.Style := csDropDownList;
+
+    SessionTrackingCombo.Items.Add('None');
+    SessionTrackingCombo.Items.Add('Everyone');
+    SessionTrackingCombo.ItemIndex := 1;
+    
+    SessionTrackingCombo.OnChange := @OnSessionTrackingChanged;
+
 
     // SleepControl
     SleepControlLabel := TLabel.Create(SettingsPage);
     SleepControlLabel.Parent := SettingsPage.Surface;
-    SleepControlLabel.Caption := 'User sessions that will be allowed to control sleepless:';
+    SleepControlLabel.Caption := 'User sessions that will be allowed to control sleep cycle:';
     SleepControlLabel.Top := SessionTrackingCombo.Top + SessionTrackingCombo.Height + ScaleY(5);
     SleepControlLabel.Left := 0;
 
@@ -166,8 +214,15 @@ begin
 
     SleepControlCombo.Left := SettingsPage.Surface.Width - ScaleX(100);
     SleepControlCombo.Width := ScaleX(100);
-    AddSessionMatchers(SleepControlCombo)
-    SleepControlCombo.ItemIndex := 3;
+    SleepControlCombo.Style := csDropDownList;
+
+    SleepControlCombo.Items.Add('None');
+    SleepControlCombo.Items.Add('Only Me');
+    SleepControlCombo.Items.Add('Administrators');
+    SleepControlCombo.Items.Add('Everyone');
+    SleepControlCombo.ItemIndex := 2;
+    
+    OnSessionTrackingChanged(SessionTrackingCombo);
   end;
   
   Result := SettingsPage;
@@ -180,12 +235,12 @@ end;
 
 function ShouldConfigureSessionMonitor(): Boolean;
 begin
-  Result := not HasExistingConfig();
+  Result := ShouldConfigureInsomnia;
 end;
 
 function ShouldConfigureSleepControl(): Boolean;
 begin
-  Result := IsComponentSelected('plugins\InsomniaServiceBridge') and not HasExistingConfig();
+  Result := IsComponentSelected('plugins\InsomniaServiceBridge') and ShouldConfigureInsomnia;
 end;
 
 <event('ShouldSkipPage')>
@@ -212,6 +267,9 @@ begin
       IdleAction := Idle[0];
     if GetArrayLength(Idle) > 1 then
       IdleActionTimeout := Idle[1];
+      
+    TrackSession := GetIniString('SessionMonitor', 'track', '', ExpandConstant('{tmp}\prefs.ini'));
+    AllowSleepControl := GetIniString('SessionMonitor', 'allowSleepControl', '', ExpandConstant('{tmp}\prefs.ini'));
   end;
 end;
 
@@ -235,26 +293,21 @@ begin
           IdleTimeoutEdit.Text := IdleActionTimeout;
           UsageActionCombo.Text := UsageAction;
           
+          SetSessionMatcher(SessionTrackingCombo, TrackSession);
+          SetSessionMatcher(SleepControlCombo, AllowSleepControl);
+          
           HasReadConfig := True;
         end;
       
-        ShowSessionTracking := False;
-        ShowSleepControl := False;
       end else begin
         TimeoutEditBox.Text := '5min';
         IdleActionCombo.Text := 'sleep';
         IdleTimeoutEdit.Text := '1x';
         UsageActionCombo.Text := 'sleepless';
-      
-        ShowSessionTracking := True;
-        ShowSleepControl := IsComponentSelected('plugins\InsomniaServiceBridge');
       end;
+      
+      ShowSleepControl := IsComponentSelected('plugins\InsomniaServiceBridge');
   
-      SeparatorShape.Visible := ShowSessionTracking or ShowSleepControl;
-
-      SessionTrackingLabel.Visible := ShowSessionTracking;
-      SessionTrackingCombo.Visible := ShowSessionTracking;
-
       SleepControlLabel.Visible := ShowSleepControl;
       SleepControlCombo.Visible := ShowSleepControl;
     end;

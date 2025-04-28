@@ -7,35 +7,26 @@ using System.Xml.Linq;
 
 namespace MadWizard.Insomnia.Service.Configuration.Builder
 {
-    internal class SessionMonitorConfigurator : IInitialConfigurationBuilder
+    internal class SessionMonitorConfigurator : IInitialConfigurationBuilder, IInitialConfigurationReader
     {
         void IInitialConfigurationBuilder.Apply(InitializationPrefs ini, XDocument config)
         {
-            // no safe auto config possible
-            if (config.Root!.Elements("SessionMonitor").Any())
-                return;
-
-            if (ini["SessionMonitor"]["track"] is string track)
+            if (ini["SessionMonitor"]["track"] is string track && track == "everyone")
             {
-                var monitor = new XElement("SessionMonitor");
-
-                switch (track)
+                if (config.Root!.Element("SessionMonitor") == null)
                 {
-                    case "user":
-                        monitor.Add(new XElement("User", new XAttribute("name", Environment.UserName)));
-                        break;
-
-                    case "everyone":
-                        monitor.Add(new XElement("Everyone"));
-                        break;
-
-                    case "administrator":
-                        monitor.Add(new XElement("Administrator"));
-                        break;
+                    config.Root!.Add(new XElement("SessionMonitor"));
                 }
-
-                config.Root?.Add(monitor);
+            }
+            else if (config.Root!.Element("SessionMonitor") is XElement monitor)
+            {
+                monitor.Remove();
             }
         }
+
+        void IInitialConfigurationReader.Apply(XDocument config, InitializationPrefs ini)
+        {
+            ini["SessionMonitor"]["track"] = config.Root!.Elements("SessionMonitor").Any() ? "everyone" : null;
+        }
     }
-}
+}   
