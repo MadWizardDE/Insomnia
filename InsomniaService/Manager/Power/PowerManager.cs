@@ -91,51 +91,75 @@ namespace MadWizard.Insomnia.Power.Manager
 
         IPowerRequest IPowerManager.CreateRequest(string reason)
         {
-            return new PowerRequest(reason);
+            return new PowerRequest(PowerRequestsType.SystemRequired, reason);
         }
 
-        bool IPowerManager.HasMatchingRequest(Regex pattern)
+        IEnumerator<IPowerRequest> IEnumerable<IPowerRequest>.GetEnumerator()
         {
-            var raw = PowerQueryRequestsRaw();
+            Dictionary<PowerRequestsType, List<PowerRequest>> requestsByType = [];
 
-            return pattern.Matches(raw).Count > 0;
-        }
-
-        private class PowerRequest : IPowerRequest
-        {
-            private readonly nint _request;
-
-            internal PowerRequest(string reason)
+            using Process process = new()
             {
-                // Create new power request.
-                POWER_REQUEST_CONTEXT context = new()
+                StartInfo = new()
                 {
-                    Flags = POWER_REQUEST_CONTEXT_SIMPLE_STRING,
-                    Version = POWER_REQUEST_CONTEXT_VERSION,
-                    SimpleReasonString = Reason = reason
-                };
+                    FileName = @"powercfg",
+                    Arguments = "-requests",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                }
+            };
 
-                _request = PowerCreateRequest(ref context);
+            if (process.Start())
+            {
+                using var reader = process.StandardOutput;
 
-                if (_request == nint.Zero)
+                string? line;
+                string? requestTypeName = null;
+
+                PowerRequest? request = null;
+                while ((line = reader.ReadLine()) != null)
                 {
-                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                    if (string.IsNullOrWhiteSpace(line = line.TrimEnd()))
+                        continue;
+
+                    if (!char.IsWhiteSpace(line[0]) && line.EndsWith(":"))
+                    {
+                        requestTypeName = line[..^1].Trim(); // Remove colon
+                        request = null;
+                    }
+                    else if (requestTypeName != null && line.StartsWith('[') && line.Contains(']'))
+                    {
+                        int bracketEnd = line.IndexOf(']');
+                        string callerType = line[1..bracketEnd];
+                        string name = line[(bracketEnd + 1)..].Trim();
+
+                        request = new PowerRequest(requestTypeName, callerType, name);
+
+                        if (request.Type is PowerRequestsType type)
+                        {
+                            if (!requestsByType.TryGetValue(type, out var list))
+                                requestsByType[type] = list = [];
+
+                            list.Add(request);
+                        }
+                    }
+                    else if (request != null)
+                    {
+                        request.Reason = line.Trim();
+                    }
                 }
 
-                if (!PowerSetRequest(_request, PowerRequestType.PowerRequestSystemRequired))
-                {
-                    throw new Win32Exception(Marshal.GetLastWin32Error());
-                }
+                process.WaitForExit();
+
+                if (requestsByType.TryGetValue(PowerRequestsType.SystemRequired, out var systemRequests))
+                    foreach (var systemReuqest in systemRequests)
+                        yield return systemReuqest;
             }
-
-            public string Reason { get; private set; }
-
-            public void Dispose()
+            else
             {
-                if (!PowerClearRequest(_request, PowerRequestType.PowerRequestSystemRequired))
-                {
-                    throw new Win32Exception(Marshal.GetLastWin32Error());
-                }
+                throw new Exception("Failed to run powercfg /requests");
             }
         }
 
@@ -156,56 +180,5 @@ namespace MadWizard.Insomnia.Power.Manager
         private static extern bool SetSuspendState(bool hiberate, bool forceCritical, bool disableWakeEvent);
         #endregion
 
-        #region API: Power-Requests
-        private static string PowerQueryRequestsRaw()
-        {
-            Process process = new()
-            {
-                StartInfo = new()
-                {
-                    FileName = @"powercfg",
-                    Arguments = "-requests",
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    WindowStyle = ProcessWindowStyle.Hidden
-                }
-            };
-
-            process.Start();
-
-            return process.StandardOutput.ReadToEnd();
-        }
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern nint PowerCreateRequest(ref POWER_REQUEST_CONTEXT Context);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool PowerSetRequest(nint PowerRequestHandle, PowerRequestType RequestType);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern bool PowerClearRequest(nint PowerRequestHandle, PowerRequestType RequestType);
-
-        private const int POWER_REQUEST_CONTEXT_VERSION = 0;
-        private const int POWER_REQUEST_CONTEXT_SIMPLE_STRING = 0x1;
-
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        private struct POWER_REQUEST_CONTEXT
-        {
-            public uint Version;
-            public uint Flags;
-
-            [MarshalAs(UnmanagedType.LPWStr)]
-            public string SimpleReasonString;
-        }
-
-        private enum PowerRequestType
-        {
-            PowerRequestDisplayRequired = 0,
-            PowerRequestSystemRequired,
-            PowerRequestAwayModeRequired,
-            PowerRequestExecutionRequired
-        }
-        #endregion
     }
 }

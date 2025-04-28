@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace MadWizard.Insomnia.Power
 {
-    internal class PowerRequestToken(string name) : UsageToken
+    internal class PowerRequestToken(string? name = null) : UsageToken
     {
-        public override string ToString() => $"(({name}))";
+        public override string ToString() => $"(({name ?? "PowerRequest"}))";
     }
 }
