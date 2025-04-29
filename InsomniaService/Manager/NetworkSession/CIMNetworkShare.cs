@@ -15,7 +15,7 @@ namespace MadWizard.Insomnia.NetworkSession.Manager
 
         public string Description { get; internal set; } = "";
 
-        public required IEnumerable<INetworkFile> Files { get; internal init; }
+        public required IEnumerable<INetworkFile> OpenFiles { get; internal init; }
 
         internal void UpdateProperties(CimInstance instance)
         {

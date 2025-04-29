@@ -22,7 +22,7 @@ namespace MadWizard.Insomnia.NetworkSession
 
         void IStartable.Start()
         {
-            Logger.LogDebug("Startup complete");
+            Logger.LogDebug($"Startup complete; {config.FilterRule.Count()} filter rules found.");
         }
 
         IEnumerable<UsageToken> IInspectable.Inspect(TimeSpan interval)
@@ -32,14 +32,14 @@ namespace MadWizard.Insomnia.NetworkSession
                 if (session.IdleTime > interval)
                     continue;
 
-                var unfilteredFiles = session.Files.Where(file => SelectFile(file, config.FilterRule));
+                var filteredFiles = session.OpenFiles.Where(file => !ShouldFilterFile(file, config.FilterRule));
 
-                if (unfilteredFiles.Any())
+                if (filteredFiles.Any())
                 {
                     if (SHOW_SHARE_USAGE)
                     {
                         var shares = new HashSet<INetworkShare>();
-                        foreach (var file in unfilteredFiles)
+                        foreach (var file in filteredFiles)
                             shares.Add(file.Share);
 
                         foreach (var share in shares)
@@ -53,16 +53,16 @@ namespace MadWizard.Insomnia.NetworkSession
             }
         }
 
-        private static bool SelectFile(INetworkFile file, IEnumerable<NetworkSessionFilterRule> filters)
+        private static bool ShouldFilterFile(INetworkFile file, IEnumerable<NetworkSessionFilterRule> filters)
         {
             foreach (var rule in filters)
-                if (!SelectFile(file, rule))
-                    return false;
+                if (ShouldFilterFile(file, rule))
+                    return true;
 
-            return true;
+            return false;
         }
 
-        private static bool SelectFile(INetworkFile file, NetworkSessionFilterRule rule)
+        private static bool ShouldFilterFile(INetworkFile file, NetworkSessionFilterRule rule)
         {
             int match = 0, mismatch = 0;
 
@@ -93,8 +93,8 @@ namespace MadWizard.Insomnia.NetworkSession
 
             return rule.Type switch
             {
-                FilterType.Include => mismatch == 0,
-                FilterType.Exclude => match == 0,
+                FilterType.Include => mismatch != 0,
+                FilterType.Exclude => match != 0,
 
                 _ => throw new NotImplementedException("unknown filter rule type"),
             };

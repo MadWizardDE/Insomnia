@@ -46,7 +46,7 @@ namespace MadWizard.Insomnia.NetworkSession.Manager
                     {
                         Client = client,
 
-                        Files = fileManager.Where(file => file.SessionId == id)
+                        OpenFiles = fileManager.Where(file => file.SessionId == id)
                     }; ;
                 }
 

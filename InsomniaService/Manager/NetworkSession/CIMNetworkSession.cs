@@ -15,7 +15,7 @@ namespace MadWizard.Insomnia.NetworkSession.Manager
         public string UserName { get; private set; } = "?";
 
         public required INetworkClient Client { get; internal init; }
-        public required IEnumerable<INetworkFile> Files { get; internal init; }
+        public required IEnumerable<INetworkFile> OpenFiles { get; internal init; }
 
         public TimeSpan ConnectionTime { get; private set; }
         public TimeSpan IdleTime { get; private set; }

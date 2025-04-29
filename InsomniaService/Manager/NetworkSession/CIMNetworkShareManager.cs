@@ -35,7 +35,7 @@ namespace MadWizard.Insomnia.NetworkSession.Manager
                 {
                     objects[name] = share = new CIMNetworkShare(name, path)
                     {
-                        Files = fileManager.Where(file => file.Path == Path.Combine(path, file.ShareRelativePath))
+                        OpenFiles = fileManager.Where(file => file.Path == Path.Combine(path, file.ShareRelativePath))
                     };
                 }
 

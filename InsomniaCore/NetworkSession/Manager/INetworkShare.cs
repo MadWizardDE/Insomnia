@@ -14,7 +14,7 @@ namespace MadWizard.Insomnia.NetworkSession.Manager
 
         string Path { get; }
 
-        IEnumerable<INetworkFile> Files { get; }
+        IEnumerable<INetworkFile> OpenFiles { get; }
 
     }
 }

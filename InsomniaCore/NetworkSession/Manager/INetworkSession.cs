@@ -13,7 +13,7 @@ namespace MadWizard.Insomnia.NetworkSession.Manager
 
         INetworkClient Client { get; }
 
-        IEnumerable<INetworkFile> Files { get; }
+        IEnumerable<INetworkFile> OpenFiles { get; }
 
         public TimeSpan ConnectionTime { get; }
         public TimeSpan IdleTime { get; }
