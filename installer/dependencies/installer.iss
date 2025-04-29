@@ -44,7 +44,7 @@ begin
   if PageID = wpSelectComponents then
   begin
     Dependency_Clear;
-    Dependency_AddVC2015To2022;
+    //Dependency_AddVC2015To2022;
     Dependency_AddDotNet80Desktop;
 
     if IsComponentSelected('InsomniaService\NetworkMonitor') then
