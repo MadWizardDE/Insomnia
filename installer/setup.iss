@@ -14,9 +14,11 @@
 
 #include "functions.iss"
 #include "dependencies/installer.iss"
-#include "settings/general.iss"
-#include "settings/network.iss"
-#include "settings/duo.iss"
+#include "settings/SystemSessionMonitor.iss"
+#include "settings/NetworkMonitor.iss"
+#include "settings/DuoStreamMonitor.iss"
+#include "settings/NetworkSessionMonitor.iss"
+#include "settings/PowerRequestMonitor.iss"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -73,7 +75,7 @@ Source: "resources\GetNetworkInterfaces.ps1"; Flags: dontcopy noencryption
 Source: "resources\network.ico"; Flags: dontcopy noencryption
 
 Source: "..\InsomniaService\bin\Release\net8.0-windows8.0\publish\*"; DestDir: "{app}";  Components: InsomniaService; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\plugins\DuoStream\bin\Release\net8.0-windows8.0\publish\*"; DestDir: "{app}\plugins\DuoStreamIntegration"; Components: plugins\DuoStreamIntegration; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\plugins\DuoStreamIntegration\bin\Release\net8.0-windows8.0\publish\*"; DestDir: "{app}\plugins\DuoStreamIntegration"; Components: plugins\DuoStreamIntegration; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\plugins\InsomniaServiceSessionBridge\InsomniaServiceBridge\bin\Release\net8.0-windows8.0\publish\*"; DestDir: "{app}\plugins\InsomniaServiceBridge"; Components: plugins\InsomniaServiceBridge; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\plugins\InsomniaServiceSessionBridge\InsomniaSessionMinion\bin\Release\*"; DestDir: "{app}\plugins\InsomniaServiceBridge\minion"; Components: plugins\InsomniaServiceBridge; Flags: ignoreversion recursesubdirs createallsubdirs
 
@@ -84,7 +86,7 @@ Filename: {app}\config\prefs.ini; Section: SystemMonitor; Key: timeout; String: 
 Filename: {app}\config\prefs.ini; Section: SystemMonitor; Key: idle; String: {code:SystemMonitorPrefs|IdleAction}; Check: ShouldConfigureSystemMonitor
 Filename: {app}\config\prefs.ini; Section: SystemMonitor; Key: usage; String: {code:SystemMonitorPrefs|UsageAction}; Check: ShouldConfigureSystemMonitor
 
-Filename: {app}\config\prefs.ini; Section: SessionMonitor; Key: track; String: {code:SessionMonitorPrefs|TrackSession}; Check: ShouldConfigureSessionMonitor
+Filename: {app}\config\prefs.ini; Section: SessionMonitor; Key: track; String: {code:SessionMonitorPrefs|Track}; Check: ShouldConfigureSessionMonitor
 Filename: {app}\config\prefs.ini; Section: SessionMonitor; Key: allowSleepControl; String: {code:SessionMonitorPrefs|AllowSleepControl}; Check: ShouldConfigureSleepControl
 
 Filename: {app}\config\prefs.ini; Section: DuoStreamMonitor; Key: idle; String: {code:DuoStreamMonitorPrefs|IdleAction}; Check: ShouldConfigureDuoStreamMonitor
@@ -92,6 +94,10 @@ Filename: {app}\config\prefs.ini; Section: DuoStreamMonitor; Key: demand; String
 
 Filename: {app}\config\prefs.ini; Section: NetworkMonitor; Key: interface; String: {code:NetworkMonitorPrefs|Interface}; Check: ShouldConfigureNetworkMonitor
 Filename: {app}\config\prefs.ini; Section: NetworkMonitor; Key: name; String: {code:NetworkMonitorPrefs|InterfaceName}; Check: ShouldConfigureNetworkMonitor
+
+Filename: {app}\config\prefs.ini; Section: NetworkSessionMonitor; Key: track; String: {code:NetworkSessionMonitorPrefs|Track}; Check: ShouldConfigureNetworkSessionMonitor
+Filename: {app}\config\prefs.ini; Section: PowerRequestMonitor; Key: track; String: {code:PowerRequestMonitorPrefs|Track}; Check: ShouldConfigurePowerRequestMonitor
+
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 

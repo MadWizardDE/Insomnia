@@ -182,6 +182,13 @@ IHostBuilder CreateHostBuilder(string[] args) => Host.CreateDefaultBuilder(args)
                         builder.RegisterType<SessionMonitorConfigurator>()
                             .AsImplementedInterfaces()
                             .SingleInstance();
+                        builder.RegisterType<PowerRequestMonitorConfigurator>()
+                            .AsImplementedInterfaces()
+                            .SingleInstance();
+                        builder.RegisterType<NetworkSessionMonitorConfigurator>()
+                            .AsImplementedInterfaces()
+                            .SingleInstance();
+
 
                         builder.RegisterPluginModules<ConfigPluginModule>();
 

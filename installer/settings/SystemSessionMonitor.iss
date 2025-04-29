@@ -337,7 +337,7 @@ function SessionMonitorPrefs(Param: String) : String;
 begin
   Result := '???';
 
-  if Param = 'TrackSession' then
+  if Param = 'Track' then
     Result := GetSessionMatcher(SettingsControls.SessionTrackingCombo);
   if Param = 'AllowSleepControl' then
     Result := GetSessionMatcher(SettingsControls.SleepControlCombo);

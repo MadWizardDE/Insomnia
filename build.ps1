@@ -12,7 +12,7 @@ function Show-Error
 # List of projects and their publish profiles
 $projects = @(
     @{ Path = ".\InsomniaService"; Profile = "Beta" },
-    @{ Path = ".\plugins\DuoStream"; Profile = "Beta" }
+    @{ Path = ".\plugins\DuoStreamIntegration"; Profile = "Beta" }
     @{ Path = ".\plugins\InsomniaServiceSessionBridge\InsomniaServiceBridge"; Profile = "Beta" }
     # Add more entries here as needed
 )
