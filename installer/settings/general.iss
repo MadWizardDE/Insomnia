@@ -203,7 +203,7 @@ begin
     // SleepControl
     SleepControlLabel := TLabel.Create(SettingsPage);
     SleepControlLabel.Parent := SettingsPage.Surface;
-    SleepControlLabel.Caption := 'User sessions that will be allowed to control sleep cycle:';
+    SleepControlLabel.Caption := 'User sessions that will be allowed to control the sleep cycle:';
     SleepControlLabel.Top := SessionTrackingCombo.Top + SessionTrackingCombo.Height + ScaleY(5);
     SleepControlLabel.Left := 0;
 
