@@ -43,7 +43,6 @@ if (Process.GetCurrentProcess().IsWindowsService())
     File.Delete(@"logs/error.log");
 }
 
-
 bool isRunningAsService = Process.GetCurrentProcess().IsWindowsService();
 
 string configDir = Path.Combine(Directory.GetCurrentDirectory(), "config");
@@ -109,14 +108,28 @@ IHostBuilder CreateHostBuilder(string[] args) => Host.CreateDefaultBuilder(args)
                 .AsImplementedInterfaces()
                 .SingleInstance()
                 .AsSelf();
-            builder.RegisterType<NetSessionManager>()
+
+            // Implementing Network-Session-Managers
+            builder.RegisterType<CIMNetworkSessionManager>()
                 .AsImplementedInterfaces()
                 .SingleInstance()
                 .AsSelf();
-            builder.RegisterType<TerminalServicesManager>().PropertiesAutowired()
+            builder.RegisterType<CIMNetworkShareManager>()
                 .AsImplementedInterfaces()
                 .SingleInstance()
                 .AsSelf();
+            builder.RegisterType<CIMNetworkFileManager>()
+                .PropertiesAutowired(PropertyWiringOptions.AllowCircularDependencies)
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .AsSelf();
+
+            builder.RegisterType<TerminalServicesManager>()
+                .PropertiesAutowired()
+                .AsImplementedInterfaces()
+                .SingleInstance()
+                .AsSelf();
+
 
             // Add Actions
             builder.RegisterType<CommandExecutor>()

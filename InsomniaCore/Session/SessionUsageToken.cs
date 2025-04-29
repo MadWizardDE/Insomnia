@@ -18,7 +18,7 @@ namespace MadWizard.Insomnia.Session
         {
             if (clientName != null)
             {
-                if (!clientName.Equals(usage.HostName, StringComparison.InvariantCultureIgnoreCase))
+                if (!clientName.Equals(usage.ClientName, StringComparison.InvariantCultureIgnoreCase))
                     return false;
 
                 if (!userName.Equals(usage.UserName, StringComparison.InvariantCultureIgnoreCase))

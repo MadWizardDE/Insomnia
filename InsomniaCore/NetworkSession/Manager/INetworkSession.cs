@@ -11,15 +11,13 @@ namespace MadWizard.Insomnia.NetworkSession.Manager
     {
         string UserName { get; }
 
-        string? ComputerName { get; }
-        IPAddress? IPAddress { get; }
+        INetworkClient Client { get; }
 
-        int? NumberOfOpenFiles { get; }
+        IEnumerable<INetworkFile> Files { get; }
 
         public TimeSpan ConnectionTime { get; }
         public TimeSpan IdleTime { get; }
 
-        bool IsGuest { get; }
-
+        // void Disconnect();
     }
 }

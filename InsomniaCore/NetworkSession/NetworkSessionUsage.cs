@@ -1,18 +1,20 @@
-﻿using System;
+﻿using MadWizard.Insomnia.NetworkSession.Manager;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace MadWizard.Insomnia.NetworkSession
 {
-    public class NetworkSessionUsage(IPAddress? ip, string? host, string user, int? numOpenFiles = null) : UsageToken
+    public class NetworkSessionUsage(INetworkSession session, INetworkShare? share = null) : UsageToken
     {
-        public string? HostName => host; public string? UserName => user;
+        public string ClientName => session.Client.Name ?? session.Client.Address?.ToString() ?? "?";
 
-        public int? NumOpenFiles => numOpenFiles;
+        public string UserName => session.UserName;
 
-        public override string ToString() => @$"\\{host ?? (ip != null ? ip.ToString() : "?")}\{user}"; // + (numOpenFiles != null ? $"[{numOpenFiles}]" : string.Empty);
+        public override string ToString() => @$"\\{ClientName}\{UserName}{(share != null ? "@" + share.Name : "")}";
     }
 }
