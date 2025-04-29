@@ -174,9 +174,43 @@ begin
   Result := True;
 end;
 
+procedure VersionLabelOnLinkClick(Sender: TObject; const Link: string; LinkType: TSysLinkType);
+var
+  ErrorCode: Integer;
+begin
+  ShellExecAsOriginalUser('open', Link, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+end;
+
+procedure CreateVersionLabel();
+var
+  DummyLabel: TLabel;
+  VersionLabel: TNewLinkLabel;
+begin
+  DummyLabel := TLabel.Create(WizardForm);
+  DummyLabel.Caption := 'Version';
+  VersionLabel := TNewLinkLabel.Create(WizardForm);
+  //VersionLabel.Caption := 'Version {#MyAppVersion}';
+  VersionLabel.Caption := 'Version <a href="https://github.com/MadWizardDE/Insomnia/releases/tag/v{#MyAppVersion}">{#MyAppVersion}</a>';
+  //VersionLabel.Font.Color := clGreen;
+  //VersionLabel.Font.Style := fsBold;
+
+  VersionLabel.Left := ScaleX(10);
+  VersionLabel.Top := WizardForm.CancelButton.Top + (WizardForm.CancelButton.Height / 2) - (DummyLabel.Height / 2)
+  VersionLabel.Anchors := [akLeft, akBottom];
+  //VersionLabel.Enabled := False;
+  VersionLabel.OnLinkClick := @VersionLabelOnLinkClick;
+
+  VersionLabel.UseVisualStyle := False;
+
+  VersionLabel.Parent := WizardForm;
+end;
+
+
 procedure InitializeWizard();
 begin
   RemoveAboutMenu
+  
+  CreateVersionLabel;
   
   SettingsPage := CreateSettingsPage(wpSelectComponents);
   DuoSettingsPage := CreateDuoSettingsPage(SettingsPage.ID);
