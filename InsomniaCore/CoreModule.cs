@@ -33,7 +33,7 @@ namespace MadWizard.Insomnia
                 foreach (var monitorConfig in config.NetworkMonitor)
                 {
                     builder.RegisterType<NetworkSniffer>()
-                        .WithParameter(new TypedParameter(typeof(INetworkSnifferConfig), monitorConfig))
+                        .WithParameter(new TypedParameter(typeof(INetworkInterfaceConfig), monitorConfig))
                         .AsImplementedInterfaces()
                         .SingleInstance()
                         .AsSelf();

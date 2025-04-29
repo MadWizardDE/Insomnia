@@ -15,7 +15,7 @@ using MadWizard.Insomnia.Configuration;
 
 namespace MadWizard.Insomnia.Network
 {
-    public class NetworkSniffer(INetworkSnifferConfig config) : IStartable, IDisposable
+    public class NetworkSniffer(INetworkInterfaceConfig config) : IStartable, IDisposable
     {
         public required ILogger<NetworkSniffer> Logger { private get; init; }
 

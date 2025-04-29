@@ -1,4 +1,5 @@
 ﻿using Autofac;
+using MadWizard.Insomnia.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -44,7 +45,8 @@ namespace MadWizard.Insomnia.Service.Configuration
                 }
                 else
                 {
-                    document = new XDocument(new XDeclaration("1.0", "UTF-8", null), new XElement("InsomniaConfig"));
+                    document = new XDocument(new XDeclaration("1.0", "UTF-8", null),
+                        new XElement("InsomniaConfig", new XAttribute("version", InsomniaConfig.VERSION)));
                 }
 
                 XElement root = document.Root!;

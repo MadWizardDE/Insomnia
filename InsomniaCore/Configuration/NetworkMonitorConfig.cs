@@ -9,14 +9,14 @@ using MadWizard.Insomnia.Configuration;
 
 namespace MadWizard.Insomnia.Configuration
 {
-    public interface INetworkSnifferConfig
+    public interface INetworkInterfaceConfig
     {
         string Name { get; }
 
         string Interface { get; }
     }
 
-    public class NetworkMonitorConfig : INetworkSnifferConfig
+    public class NetworkMonitorConfig : INetworkInterfaceConfig
     {
         public required string Name { get; set; }
         public required string Interface { get; set; }

@@ -9,6 +9,8 @@ namespace MadWizard.Insomnia.Configuration
 {
     public class InsomniaConfig
     {
+        public const string VERSION = "1";
+
         public Interval? Timeout { get; set; }
 
         public DelayedAction? OnIdle { get; set; }
