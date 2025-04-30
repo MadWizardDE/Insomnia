@@ -90,7 +90,7 @@ The standard configuration writes the reasons for sleep inhibition into a log fi
 
 A considerable amount of development time was invested to provide you with a sophisticated installer, that allows you to set everything up and running in a minute.
 
-It does the work for you, to register Insomnia as a system service, download and install all necessary dependencies and guide you through a basic configuration of the parameters. Nevertheless, you are encouraged to dive into the 🚧 **Wiki** to discover, what Insomnia can do for you and how to configure it.
+It does the work for you, to register Insomnia as a system service, download and install all necessary dependencies and guide you through a basic configuration of the parameters. Nevertheless, you are encouraged to dive into the 🚧 [**Wiki**](https://github.com/MadWizardDE/Insomnia/wiki) to discover, what Insomnia can do for you and how to configure it.
 
 If it happens that you don't like Insomnia, the uninstaller will help you to remove everything from your system completely. For your convenience, you can run the installer again (or hit "Modify" in the system settings) to add/remove some of the optional features later on.
 

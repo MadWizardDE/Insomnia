@@ -14,7 +14,7 @@ namespace MadWizard.Insomnia.Configuration
         public Interval? Timeout { get; set; }
 
         public DelayedAction? OnIdle { get; set; }
-        public NamedAction? OnUsage { get; set; } = new NamedAction("sleepless");
+        public NamedAction? OnUsage { get; set; }
 
         public SessionMonitorConfig? SessionMonitor { get; set; }
         public ProcessMonitorConfig? ProcessMonitor { get; set; }

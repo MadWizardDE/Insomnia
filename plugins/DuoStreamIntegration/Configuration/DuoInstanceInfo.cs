@@ -13,7 +13,7 @@ namespace MadWizard.Insomnia.Service.Duo.Configuration
 
         public NamedAction? OnDemand { get; set; }
 
-        public ScheduledAction? OnIdle { get; set; }
+        public DelayedAction? OnIdle { get; set; }
 
         public ScheduledAction? OnLogin { get; set; }
         public ScheduledAction? OnStart { get; set; }

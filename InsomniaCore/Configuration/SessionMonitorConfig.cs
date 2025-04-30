@@ -52,6 +52,6 @@ namespace MadWizard.Insomnia.Configuration
 
     public class SessionProcessGroupInfo : ProcessGroupInfo
     {
-        public ScheduledAction? OnSessionIdle { get; set; }
+        public DelayedAction? OnSessionIdle { get; set; }
     }
 }

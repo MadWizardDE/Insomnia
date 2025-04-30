@@ -43,7 +43,7 @@ namespace MadWizard.Insomnia.Configuration
     public class VirtualHostInfo : NetworkHostInfo
     {
         public NamedAction? OnAccess { get; set; } = new NamedAction("start");
-        public ScheduledAction? OnIdle { get; set; }
+        public DelayedAction? OnIdle { get; set; }
 
         public IList<TCPServiceInfo> TCPService { get; private set; } = [];
         public IList<HTTPServiceInfo> HTTPService { get; private set; } = [];
