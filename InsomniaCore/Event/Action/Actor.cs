@@ -21,7 +21,7 @@ namespace MadWizard.Insomnia
 
         protected void AddEventAction(string eventName, NamedAction? action)
         {
-            if (action == null)
+            if (action == null || action.Name.Trim() == string.Empty)
                 return;
 
             void invocation(Event eventRef)
