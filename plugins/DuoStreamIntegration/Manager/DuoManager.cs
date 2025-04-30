@@ -14,6 +14,7 @@ namespace MadWizard.Insomnia.Service.Duo.Manager
 {
     public class DuoManager(DuoConfig config) : BackgroundService, IIEnumerable<DuoInstance>
     {
+        const int DEFAULT_TIMEOUT = 30000;
         const string REGISTRY_KEY = "SOFTWARE\\Duo";
         const uint DEFAULT_PORT = 38299;
 
@@ -144,7 +145,7 @@ namespace MadWizard.Insomnia.Service.Duo.Manager
             bool? wasRunning = instance.IsRunning, shouldBeRunning = await API.QueryInstance(instance.Name);
 
             if (shouldBeRunning.Value)
-                instance.IsRunning = instance.SessionID != null;
+                instance.IsRunning = instance.IsSandboxed || (instance.SessionID != null);
             else
             {
                 instance.IsRunning = false;
@@ -160,7 +161,7 @@ namespace MadWizard.Insomnia.Service.Duo.Manager
             return instance.IsRunning!.Value;
         }
 
-        public async Task Start(DuoInstance instance, int timeout = 15000)
+        public async Task Start(DuoInstance instance, int timeout = DEFAULT_TIMEOUT)
         {
             Logger.LogInformation($"Starting {instance}...");
 

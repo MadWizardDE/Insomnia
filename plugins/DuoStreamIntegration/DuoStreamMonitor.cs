@@ -52,9 +52,18 @@ namespace MadWizard.Insomnia.Service.Duo
 
                 if (IsFallbackMode)
                 {
-                    Logger.LogInformation($"Monitoring {instance}:{instance.Port} -> Fallback");
+                    if (!instance.IsSandboxed)
+                    {
+                        Logger.LogInformation($"Monitoring {instance}:{instance.Port} -> Fallback");
 
-                    instance.StartTracking(sunshine = new SunshineFallbackService(instance.Port));
+                        instance.StartTracking(sunshine = new SunshineFallbackService(instance.Port));
+                    }
+                    else
+                    {
+                        Logger.LogWarning($"NOT Monitoring {instance}:{instance.Port} -> Fallback is not available for sandboxed instances");
+
+                        continue;
+                    }
                 }
                 else
                 {

@@ -58,6 +58,8 @@ namespace MadWizard.Insomnia.Service.Duo.Manager
 
         public bool IsBusy => Semaphore.CurrentCount == 0;
 
+        public bool IsSandboxed => Key.GetValue("Sandboxed") is int sandboxed ? sandboxed == 1 : false;
+
         public bool? IsRunning
         {
             get => _running;
