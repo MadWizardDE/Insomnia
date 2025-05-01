@@ -58,7 +58,7 @@ Name: "custom"; Description: "Custom installation"; Flags: iscustom
 
 [Components]
 Name: "InsomniaService"; Description: "Insomnia Service"; Types: full minimal duo server custom; Flags: fixed
-Name: "InsomniaService\NetworkMonitor"; Description: "Network Monitoring"; Types: full server custom; Flags: disablenouninstallwarning; Check: not IsArm64
+Name: "InsomniaService\NetworkMonitor"; Description: "Network Monitoring"; Types: full server duo custom; Flags: disablenouninstallwarning; Check: not IsArm64
 Name: "plugins"; Description: "Additional Features"; Types: full custom; Flags: disablenouninstallwarning; Check: IsDuoInstalled or IsBridgeReady
 Name: "plugins\DuoStreamIntegration"; Description: "DuoStream Integration"; Types: full duo custom; Flags: disablenouninstallwarning; Check: IsDuoInstalled
 Name: "plugins\InsomniaServiceBridge"; Description: "Interactive Taskbar Icon"; Types: full custom; Flags: disablenouninstallwarning; Check: IsBridgeReady
